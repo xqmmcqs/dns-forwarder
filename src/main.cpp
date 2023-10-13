@@ -1,22 +1,87 @@
+#include <getopt.h>
+
+#include <fstream>
+#include <string>
+
 #include "server.h"
 #include "utils.h"
-#include <string>
+
 using namespace std;
 using namespace DnsForwarder;
 
-int main()
+int main(int argc, char *argv[])
 {
-    string local_ip("0.0.0.0");
+    Logger::GetInstance().SetLevel(Logger::INFO);
+    string local_ip4("127.0.0.1");
+    string local_ip6("::1");
     uint16_t local_port(10053);
+
+    while (true)
+    {
+        static struct option long_options[] = {
+            {"help", no_argument, 0, 'h'},           {"debug", no_argument, 0, 'd'},
+            {"local-ipv4", required_argument, 0, 0}, {"local-ipv6", required_argument, 0, 0},
+            {"local-port", required_argument, 0, 0}, {0, 0, 0, 0}};
+        int option_index = 0;
+        int c = getopt_long(argc, argv, "hd", long_options, &option_index);
+        if (c == -1)
+            break;
+        switch (c)
+        {
+        case 0:
+            switch (option_index)
+            {
+            case 2:
+                local_ip4 = optarg;
+                break;
+            case 3:
+                local_ip6 = optarg;
+                break;
+            case 4:
+                local_port = stoi(optarg);
+                break;
+            }
+        case 'h':
+            cout << "Usage: dns-forwarder [OPTION]..." << endl;
+            cout << "Forward DNS queries to remote DNS server" << endl;
+            cout << endl;
+            cout << "  -h, --help             display this help and exit" << endl;
+            cout << "  -d, --debug            enable debug mode" << endl;
+            cout << "      --local-ipv4=IP    local IPv4 address (default: 127.0.0.1)" << endl;
+            cout << "      --local-ipv6=IP    local IPv6 address (default: ::1)" << endl;
+            cout << "      --local-port=PORT  local port (default: 10053)" << endl;
+            return 0;
+        case 'd':
+            Logger::GetInstance().SetLevel(Logger::DEBUG);
+            break;
+        case '?':
+        default:
+            break;
+        }
+    }
+
     sockaddr_in local_addr4;
-    Wrapper::SockAddr4(local_ip, local_port, local_addr4);
-    string remote_ip("192.168.3.1");
-    uint16_t remote_port(53);
-    sockaddr_in remote_addr4;
-    Wrapper::SockAddr4(remote_ip, remote_port, remote_addr4);
     sockaddr_in6 local_addr6;
-    sockaddr_in6 remote_addr6;
-    Server server(local_addr4, local_addr6, remote_addr4, remote_addr6);
+    Wrapper::SockAddr4(local_ip4, local_port, local_addr4);
+    Wrapper::SockAddr6(local_ip6, local_port, local_addr6);
+    Server server(local_addr4, local_addr6);
+    ifstream fin("nameserver.txt");
+    string remote_ip;
+    while (fin >> remote_ip)
+    {
+        if (remote_ip.find('.') != string::npos)
+        {
+            sockaddr_in remote_addr4;
+            Wrapper::SockAddr4(remote_ip, 53, remote_addr4);
+            server.AddRemote(remote_addr4);
+        }
+        else
+        {
+            sockaddr_in6 remote_addr6;
+            Wrapper::SockAddr6(remote_ip, 53, remote_addr6);
+            server.AddRemote(remote_addr6);
+        }
+    }
     server.Run();
     return 0;
 }

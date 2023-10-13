@@ -1,31 +1,35 @@
 #include "utils.h"
+
 #include <cstring>
 #include <fcntl.h>
-#include <stdexcept>
 #include <unistd.h>
+
+#include <iomanip>
+#include <sstream>
+#include <stdexcept>
 
 using namespace std;
 
 void DnsForwarder::Wrapper::HostToIp4(const string &host, uint32_t &ip)
 {
     if (!inet_pton(AF_INET, host.c_str(), &ip))
-        throw invalid_argument("Invalid IPv4 address");
+        throw invalid_argument("Invalid IPv4 address: " + host);
 }
 
 void DnsForwarder::Wrapper::HostToIp6(const string &host, uint8_t ip[16])
 {
     if (!inet_pton(AF_INET6, host.c_str(), ip))
-        throw invalid_argument("Invalid IPv6 address");
+        throw invalid_argument("Invalid IPv6 address: " + host);
 }
 
-void DnsForwarder::Wrapper::SockAddr4(const std::string &host, uint16_t port, sockaddr_in &addr)
+void DnsForwarder::Wrapper::SockAddr4(const string &host, uint16_t port, sockaddr_in &addr)
 {
     addr.sin_family = AF_INET;
     HostToIp4(host, addr.sin_addr.s_addr);
     addr.sin_port = htons(port);
 }
 
-void DnsForwarder::Wrapper::SockAddr6(const std::string &host, uint16_t port, sockaddr_in6 &addr)
+void DnsForwarder::Wrapper::SockAddr6(const string &host, uint16_t port, sockaddr_in6 &addr)
 {
     addr.sin6_family = AF_INET6;
     HostToIp6(host, addr.sin6_addr.s6_addr);
@@ -118,4 +122,62 @@ int DnsForwarder::Wrapper::EpollWait(int epollfd, epoll_event *events, int maxev
     if (nready == -1)
         throw runtime_error("Failed to wait for epoll events");
     return nready;
+}
+
+DnsForwarder::Logger::LogLevel DnsForwarder::Logger::m_log_level = DnsForwarder::Logger::NONE;
+
+DnsForwarder::Logger DnsForwarder::Logger::GetInstance()
+{
+    static Logger logger_instance;
+    return logger_instance;
+}
+
+void DnsForwarder::Logger::SetLevel(LogLevel level)
+{
+    m_log_level = level;
+}
+
+void DnsForwarder::Logger::Log(string filename, int line, LogLevel message_level, const string &message)
+{
+    if (message_level <= m_log_level)
+    {
+        string log_type;
+        switch (message_level)
+        {
+        case DEBUG:
+            log_type = "[DEBUG] ";
+            break;
+        case INFO:
+            log_type = "[INFO] ";
+            break;
+        case WARNING:
+            log_type = "[WARN] ";
+            break;
+        case ERROR:
+            log_type = "[ERROR] ";
+            break;
+        default:
+            log_type = "[NONE] ";
+            break;
+        }
+        cerr << log_type + filename + ":" + to_string(line) + " " + message << endl;
+    }
+}
+
+string DnsForwarder::Logger::RawDataFormatter(const string &raw)
+{
+    int counter = 0;
+    std::ostringstream ss;
+    ss << hex;
+    for (int i = 0; i < raw.size(); ++i)
+    {
+        ss << setw(2) << setfill('0') << static_cast<int>(static_cast<uint8_t>(raw[i])) << ' ';
+        ++counter;
+        if (counter == 16)
+        {
+            ss << '\n';
+            counter = 0;
+        }
+    }
+    return std::move(ss.str());
 }

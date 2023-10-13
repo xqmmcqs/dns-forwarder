@@ -30,6 +30,10 @@ add_custom_target(venv ALL
 
 set(PYTHON_TEST "${VENV_DIR}/bin/python")
 
-add_test(NAME test1
-    COMMAND ${PYTHON_TEST} ${PROJECT_SOURCE_DIR}/test/test.py
+add_test(NAME qtype
+    COMMAND ${PYTHON_TEST} ${PROJECT_SOURCE_DIR}/test/test_qtype.py
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+
+add_test(NAME ipv6
+    COMMAND ${PYTHON_TEST} ${PROJECT_SOURCE_DIR}/test/test_ipv6.py
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})

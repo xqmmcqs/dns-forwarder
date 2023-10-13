@@ -18,14 +18,20 @@ template <typename TaskT> uint16_t DnsForwarder::TaskPool<TaskT>::PutTask(shared
     return index;
 }
 
-template <typename TaskT> shared_ptr<TaskT> DnsForwarder::TaskPool<TaskT>::GetTask(uint16_t index)
+template <typename TaskT> shared_ptr<TaskT> DnsForwarder::TaskPool<TaskT>::GetTask(uint16_t index) const
 {
     if (!m_pool[index])
         return nullptr;
-    m_index_queue.push(index);
-    auto ret = m_pool[index];
-    m_pool[index] = nullptr;
-    return ret;
+    return m_pool[index];
+}
+
+template <typename TaskT> void DnsForwarder::TaskPool<TaskT>::DelTask(uint16_t index)
+{
+    if (m_pool[index])
+    {
+        m_index_queue.push(index);
+        m_pool[index] = nullptr;
+    }
 }
 
 template <typename TaskT> bool DnsForwarder::TaskPool<TaskT>::IsFull() const
@@ -33,12 +39,9 @@ template <typename TaskT> bool DnsForwarder::TaskPool<TaskT>::IsFull() const
     return m_index_queue.empty();
 }
 
-template <typename TaskT> bool DnsForwarder::TaskPool<TaskT>::InPool(uint16_t index) const
+template <typename TaskT> bool DnsForwarder::TaskPool<TaskT>::HasTask(uint16_t index) const
 {
     return m_pool[index] != nullptr;
 }
 
-template class DnsForwarder::UdpTask<sockaddr_in>;
-template class DnsForwarder::UdpTask<sockaddr_in6>;
-template class DnsForwarder::TaskPool<DnsForwarder::UdpTask<sockaddr_in>>;
-template class DnsForwarder::TaskPool<DnsForwarder::UdpTask<sockaddr_in6>>;
+template class DnsForwarder::TaskPool<DnsForwarder::UdpTask>;

@@ -2,8 +2,9 @@
 #define _DNSPACKET_H_
 
 #include <arpa/inet.h>
-#include <sstream>
 #include <stdint.h>
+
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -52,6 +53,10 @@ struct DomainName
 {
     std::string name;
     uint8_t length = 0;
+    bool operator==(const DomainName &other) const
+    {
+        return name == other.name;
+    }
     void parse(std::istringstream &is);
     void serialize(std::ostringstream &os) const;
 };
@@ -80,6 +85,10 @@ struct DnsQuestion
     DomainName qname;
     uint16_t qtype;
     uint16_t qclass;
+    bool operator==(const DnsQuestion &other) const
+    {
+        return qname == other.qname && qtype == other.qtype && qclass == other.qclass;
+    }
     void parse(std::istringstream &is);
     void serialize(std::ostringstream &os) const;
 };
@@ -116,4 +125,4 @@ template <typename T> void Serialize(std::ostringstream &os, const T &t)
 }
 } // namespace DnsForwarder
 
-#endif
+#endif // _DNSPACKET_H_

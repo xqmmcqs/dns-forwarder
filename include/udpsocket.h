@@ -2,7 +2,7 @@
 #define _UDPSOCKET_H_
 
 #include <arpa/inet.h>
-#include <stdint.h>
+#include <cstdint>
 
 #include <queue>
 #include <string>
@@ -12,12 +12,12 @@ namespace DnsForwarder
 {
 template <typename AddrT> class UdpSocket
 {
-    UdpSocket(const UdpSocket &) = delete;
-    UdpSocket &operator=(const UdpSocket &) = delete;
-
   public:
     UdpSocket();
     ~UdpSocket();
+    UdpSocket(const UdpSocket &) = delete;
+    UdpSocket &operator=(const UdpSocket &) = delete;
+
     int fd() const
     {
         return m_sockfd;
@@ -57,4 +57,4 @@ typedef UdpServer<sockaddr_in> UdpServer4;
 typedef UdpServer<sockaddr_in6> UdpServer6;
 } // namespace DnsForwarder
 
-#endif
+#endif // _UDPSOCKET_H_

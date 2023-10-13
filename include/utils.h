@@ -2,10 +2,12 @@
 #define _UTILS_H_
 
 #include <arpa/inet.h>
-#include <queue>
 #include <stdint.h>
-#include <string>
 #include <sys/epoll.h>
+
+#include <iostream>
+#include <queue>
+#include <string>
 
 struct sockaddr;
 
@@ -28,6 +30,27 @@ void EpollAddFd(int epollfd, int sockfd, epoll_event &event);
 void EpollRemoveFd(int epollfd, int sockfd);
 int EpollWait(int epollfd, epoll_event *events, int maxevents, int timeout);
 } // namespace Wrapper
+
+class Logger
+{
+  public:
+    enum LogLevel
+    {
+        NONE = 0,
+        ERROR = 1,
+        WARNING = 2,
+        INFO = 3,
+        DEBUG = 4
+    };
+    static Logger GetInstance();
+    static void SetLevel(LogLevel level);
+    static std::string RawDataFormatter(const std::string &raw);
+    void Log(std::string filename, int line, LogLevel message_level, const std::string &message);
+
+  private:
+    static LogLevel m_log_level;
+};
+
 } // namespace DnsForwarder
 
-#endif
+#endif // _UTILS_H_

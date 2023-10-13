@@ -2,6 +2,7 @@
 #define _EVENT_H_
 
 #include "task.h"
+#include "utils.h"
 
 namespace DnsForwarder
 {
@@ -14,47 +15,51 @@ class Event
     virtual void Handler() = 0;
 };
 
-template <typename ServerAddrT, typename ClientAddrT> class UdpServerRecvEvent : public Event
+template <typename AddrT> class UdpServerRecvEvent : public Event
 {
     UdpServerRecvEvent() = delete;
     UdpServerRecvEvent(const UdpServerRecvEvent &) = delete;
     UdpServerRecvEvent &operator=(const UdpServerRecvEvent &) = delete;
 
   public:
-    UdpServerRecvEvent(UdpServer<ServerAddrT> &udp_server, UdpClient<ClientAddrT> &udp_client,
-                       const ClientAddrT &remote_addr, TaskPool<UdpTask<ServerAddrT>> &task_pool)
-        : m_udp_server(udp_server), m_udp_client(udp_client), m_remote_addr(remote_addr), m_task_pool(task_pool)
+    UdpServerRecvEvent(UdpServer<AddrT> &udp_server, UdpClient4 &udp_client4, UdpClient6 &udp_client6,
+                       std::vector<sockaddr_in> &remote_addr4, std::vector<sockaddr_in6> &remote_addr6,
+                       TaskPool<UdpTask> &task_pool)
+        : m_udp_server(udp_server), m_udp_client4(udp_client4), m_udp_client6(udp_client6),
+          m_remote_addr4(remote_addr4), m_remote_addr6(remote_addr6), m_task_pool(task_pool)
     {
     }
     void Handler() override;
 
   private:
-    UdpServer<ServerAddrT> &m_udp_server;
-    UdpClient<ClientAddrT> &m_udp_client;
-    const ClientAddrT &m_remote_addr;
-    TaskPool<UdpTask<ServerAddrT>> &m_task_pool;
+    UdpServer<AddrT> &m_udp_server;
+    UdpClient4 &m_udp_client4;
+    UdpClient6 &m_udp_client6;
+    std::vector<sockaddr_in> &m_remote_addr4;
+    std::vector<sockaddr_in6> &m_remote_addr6;
+    TaskPool<UdpTask> &m_task_pool;
 };
 
-template <typename ServerAddrT, typename ClientAddrT> class UdpClientRecvEvent : public Event
+template <typename AddrT> class UdpClientRecvEvent : public Event
 {
     UdpClientRecvEvent() = delete;
     UdpClientRecvEvent(const UdpClientRecvEvent &) = delete;
     UdpClientRecvEvent &operator=(const UdpClientRecvEvent &) = delete;
 
   public:
-    UdpClientRecvEvent(UdpServer<ServerAddrT> &udp_server, UdpClient<ClientAddrT> &udp_client,
-                       const ClientAddrT &remote_addr, TaskPool<UdpTask<ServerAddrT>> &task_pool)
-        : m_udp_server(udp_server), m_udp_client(udp_client), m_remote_addr(remote_addr), m_task_pool(task_pool)
+    UdpClientRecvEvent(UdpClient<AddrT> &udp_client, UdpServer4 &udp_server4, UdpServer6 &udp_server6,
+                       TaskPool<UdpTask> &task_pool)
+        : m_udp_client(udp_client), m_udp_server4(udp_server4), m_udp_server6(udp_server6), m_task_pool(task_pool)
     {
     }
     void Handler() override;
 
   private:
-    UdpServer<ServerAddrT> &m_udp_server;
-    UdpClient<ClientAddrT> &m_udp_client;
-    const ClientAddrT &m_remote_addr;
-    TaskPool<UdpTask<ServerAddrT>> &m_task_pool;
+    UdpClient<AddrT> &m_udp_client;
+    UdpServer4 &m_udp_server4;
+    UdpServer6 &m_udp_server6;
+    TaskPool<UdpTask> &m_task_pool;
 };
 } // namespace DnsForwarder
 
-#endif
+#endif // _EVENT_H_
