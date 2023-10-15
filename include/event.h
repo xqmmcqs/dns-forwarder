@@ -37,6 +37,7 @@ template <typename AddrT> class UdpServerRecvEvent : public Event
     UdpClient6 &m_udp_client6;
     std::vector<sockaddr_in> &m_remote_addr4;
     std::vector<sockaddr_in6> &m_remote_addr6;
+    int m_epollfd;
     TaskPool<UdpTask> &m_task_pool;
 };
 
@@ -58,6 +59,7 @@ template <typename AddrT> class UdpClientRecvEvent : public Event
     UdpClient<AddrT> &m_udp_client;
     UdpServer4 &m_udp_server4;
     UdpServer6 &m_udp_server6;
+    int m_epollfd;
     TaskPool<UdpTask> &m_task_pool;
 };
 } // namespace DnsForwarder

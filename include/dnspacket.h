@@ -2,11 +2,10 @@
 #define _DNSPACKET_H_
 
 #include <arpa/inet.h>
-#include <stdint.h>
+#include <cstdint>
 
 #include <sstream>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace DnsForwarder

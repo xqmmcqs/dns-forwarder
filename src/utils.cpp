@@ -50,6 +50,26 @@ void DnsForwarder::Wrapper::Bind(int sockfd, const sockaddr *addr, socklen_t add
         throw runtime_error("Failed to bind socket");
 }
 
+void DnsForwarder::Wrapper::Listen(int sockfd, int backlog)
+{
+    if (listen(sockfd, backlog) == -1)
+        throw runtime_error("Failed to listen on socket");
+}
+
+int DnsForwarder::Wrapper::Accept(int sockfd, sockaddr *addr, socklen_t *addrlen)
+{
+    int fd = accept(sockfd, addr, addrlen);
+    if (fd == -1)
+        throw runtime_error("Failed to accept connection");
+    return fd;
+}
+
+void DnsForwarder::Wrapper::Connect(int sockfd, const sockaddr *addr, socklen_t addrlen)
+{
+    if (connect(sockfd, addr, addrlen) == -1)
+        throw runtime_error("Failed to connect to server");
+}
+
 void DnsForwarder::Wrapper::Close(int sockfd)
 {
     if (close(sockfd) == -1)
@@ -74,6 +94,32 @@ ssize_t DnsForwarder::Wrapper::RecvFrom(int sockfd, void *buf, size_t len, int f
                                         socklen_t *addrlen)
 {
     int nrecv = recvfrom(sockfd, buf, len, flags, src_addr, addrlen);
+    if (nrecv == -1)
+    {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return 0;
+        else
+            throw runtime_error("Failed to receive data");
+    }
+    return nrecv;
+}
+
+ssize_t DnsForwarder::Wrapper::Send(int sockfd, const void *buf, size_t len, int flags)
+{
+    int nsend = send(sockfd, buf, len, flags);
+    if (nsend == -1)
+    {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return 0;
+        else
+            throw runtime_error("Failed to send data");
+    }
+    return nsend;
+}
+
+ssize_t DnsForwarder::Wrapper::Recv(int sockfd, void *buf, size_t len, int flags)
+{
+    int nrecv = recv(sockfd, buf, len, flags);
     if (nrecv == -1)
     {
         if (errno == EAGAIN || errno == EWOULDBLOCK)
@@ -114,6 +160,12 @@ void DnsForwarder::Wrapper::EpollRemoveFd(int epollfd, int sockfd)
 {
     if (epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, nullptr) == -1)
         throw runtime_error("Failed to remove socket from epoll");
+}
+
+void DnsForwarder::Wrapper::EpollModifyFd(int epollfd, int sockfd, epoll_event &event)
+{
+    if (epoll_ctl(epollfd, EPOLL_CTL_MOD, sockfd, &event) == -1)
+        throw runtime_error("Failed to modify socket in epoll");
 }
 
 int DnsForwarder::Wrapper::EpollWait(int epollfd, epoll_event *events, int maxevents, int timeout)

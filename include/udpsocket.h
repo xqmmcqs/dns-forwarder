@@ -22,8 +22,8 @@ template <typename AddrT> class UdpSocket
     {
         return m_sockfd;
     }
-    void SendTo();
-    void SendTo(const AddrT &addr, const std::string &data);
+    bool SendTo();
+    bool SendTo(const AddrT &addr, const std::string &data);
     void ReceiveFrom(AddrT &addr, std::string &data) const;
 
   protected:
@@ -44,9 +44,6 @@ template <typename AddrT> class UdpServer : public UdpSocket<AddrT>
     UdpServer() = delete;
     UdpServer(const AddrT &addr);
     ~UdpServer() = default;
-
-  private:
-    AddrT m_addr;
 };
 
 typedef UdpSocket<sockaddr_in> UdpSocket4;

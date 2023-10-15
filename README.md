@@ -2,8 +2,7 @@
 
 ## TODO:
 
-- IPv6
-- Multithread & Reactor
 - TCP Support
+- Multithread & Reactor
 - Redis
 - DoH/DoT

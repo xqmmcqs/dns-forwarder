@@ -25,24 +25,27 @@ template <typename AddrT> DnsForwarder::UdpSocket<AddrT>::~UdpSocket()
     Wrapper::Close(m_sockfd);
 }
 
-template <typename AddrT> void DnsForwarder::UdpSocket<AddrT>::SendTo()
+template <typename AddrT> bool DnsForwarder::UdpSocket<AddrT>::SendTo()
 {
     while (!send_queue.empty())
     {
-        const auto &target = send_queue.front();
-        if (!Wrapper::SendTo(m_sockfd, target.second.c_str(), target.second.size(), MSG_DONTWAIT,
-                             (struct sockaddr *)&target.first, sizeof(target.first)))
+        const auto &packet = send_queue.front();
+        if (!Wrapper::SendTo(m_sockfd, packet.second.c_str(), packet.second.size(), MSG_DONTWAIT,
+                             (struct sockaddr *)&packet.first, sizeof(packet.first)))
             break;
         send_queue.pop();
     }
+    return !send_queue.empty();
 }
 
-template <typename AddrT> void DnsForwarder::UdpSocket<AddrT>::SendTo(const AddrT &addr, const std::string &data)
+template <typename AddrT> bool DnsForwarder::UdpSocket<AddrT>::SendTo(const AddrT &addr, const std::string &data)
 {
     if (!Wrapper::SendTo(m_sockfd, data.c_str(), data.size(), MSG_DONTWAIT, (struct sockaddr *)&addr, sizeof(addr)))
+    {
         send_queue.push(make_pair(addr, data));
-    else
-        SendTo();
+        return true;
+    }
+    return false;
 }
 
 template <typename AddrT> void DnsForwarder::UdpSocket<AddrT>::ReceiveFrom(AddrT &addr, std::string &data) const
@@ -54,9 +57,9 @@ template <typename AddrT> void DnsForwarder::UdpSocket<AddrT>::ReceiveFrom(AddrT
         data.assign(buf, nrecv);
 }
 
-template <typename AddrT> DnsForwarder::UdpServer<AddrT>::UdpServer(const AddrT &addr) : m_addr(addr)
+template <typename AddrT> DnsForwarder::UdpServer<AddrT>::UdpServer(const AddrT &addr)
 {
-    Wrapper::Bind(this->m_sockfd, (struct sockaddr *)&m_addr, sizeof(m_addr));
+    Wrapper::Bind(this->m_sockfd, (struct sockaddr *)&addr, sizeof(addr));
 }
 
 template class DnsForwarder::UdpSocket<sockaddr_in>;

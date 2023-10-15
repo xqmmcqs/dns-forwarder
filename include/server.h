@@ -4,7 +4,6 @@
 #include <sys/epoll.h>
 
 #include <iostream>
-#include <vector>
 
 #include "event.h"
 

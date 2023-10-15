@@ -26,9 +26,25 @@ template <typename AddrT> void DnsForwarder::UdpServerRecvEvent<AddrT>::Handler(
     packet.serialize(os);
     logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Send DNS packet to remote:\n" + Logger::RawDataFormatter(os.str()));
     for (const auto &remote_addr : m_remote_addr4)
-        m_udp_client4.SendTo(remote_addr, os.str());
+    {
+        if (m_udp_client4.SendTo(remote_addr, os.str()))
+        {
+            epoll_event event;
+            event.data.ptr = &m_udp_client4;
+            event.events = EPOLLIN | EPOLLET | EPOLLOUT;
+            Wrapper::EpollModifyFd(m_epollfd, m_udp_client4.fd(), event);
+        }
+    }
     for (const auto &remote_addr : m_remote_addr6)
-        m_udp_client6.SendTo(remote_addr, os.str());
+    {
+        if (m_udp_client6.SendTo(remote_addr, os.str()))
+        {
+            epoll_event event;
+            event.data.ptr = &m_udp_client6;
+            event.events = EPOLLIN | EPOLLET | EPOLLOUT;
+            Wrapper::EpollModifyFd(m_epollfd, m_udp_client6.fd(), event);
+        }
+    }
 }
 
 template <typename AddrT> void DnsForwarder::UdpClientRecvEvent<AddrT>::Handler()
@@ -55,9 +71,25 @@ template <typename AddrT> void DnsForwarder::UdpClientRecvEvent<AddrT>::Handler(
     packet.serialize(os);
     logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Send DNS packet to local:\n" + Logger::RawDataFormatter(os.str()));
     if (task_ptr->is_ipv6)
-        m_udp_server6.SendTo(task_ptr->addr6, os.str());
+    {
+        if (m_udp_server6.SendTo(task_ptr->addr6, os.str()))
+        {
+            epoll_event event;
+            event.data.ptr = &m_udp_server6;
+            event.events = EPOLLIN | EPOLLET | EPOLLOUT;
+            Wrapper::EpollModifyFd(m_epollfd, m_udp_server6.fd(), event);
+        }
+    }
     else
-        m_udp_server4.SendTo(task_ptr->addr, os.str());
+    {
+        if (m_udp_server4.SendTo(task_ptr->addr, os.str()))
+        {
+            epoll_event event;
+            event.data.ptr = &m_udp_server4;
+            event.events = EPOLLIN | EPOLLET | EPOLLOUT;
+            Wrapper::EpollModifyFd(m_epollfd, m_udp_server4.fd(), event);
+        }
+    }
 }
 
 template class DnsForwarder::UdpServerRecvEvent<sockaddr_in>;

@@ -2,7 +2,6 @@
 #define _TASK_H_
 
 #include <memory>
-#include <queue>
 
 #include "dnspacket.h"
 #include "udpsocket.h"

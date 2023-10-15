@@ -53,7 +53,13 @@ void DnsForwarder::Server::Run()
                 }
                 else if (m_events[i].events & EPOLLOUT)
                 {
-                    m_udp_server4.SendTo();
+                    if (!m_udp_server4.SendTo())
+                    {
+                        epoll_event event;
+                        event.data.ptr = &m_udp_server4;
+                        event.events = EPOLLIN | EPOLLET;
+                        Wrapper::EpollModifyFd(m_epollfd, m_udp_server4.fd(), event);
+                    }
                 }
             }
             else if (socket == &m_udp_client4)
@@ -66,7 +72,13 @@ void DnsForwarder::Server::Run()
                 }
                 else if (m_events[i].events & EPOLLOUT)
                 {
-                    m_udp_client4.SendTo();
+                    if (!m_udp_client4.SendTo())
+                    {
+                        epoll_event event;
+                        event.data.ptr = &m_udp_client4;
+                        event.events = EPOLLIN | EPOLLET;
+                        Wrapper::EpollModifyFd(m_epollfd, m_udp_client4.fd(), event);
+                    }
                 }
             }
             else if (socket == &m_udp_server6)
@@ -79,7 +91,13 @@ void DnsForwarder::Server::Run()
                 }
                 else if (m_events[i].events & EPOLLOUT)
                 {
-                    m_udp_server6.SendTo();
+                    if (!m_udp_server6.SendTo())
+                    {
+                        epoll_event event;
+                        event.data.ptr = &m_udp_server6;
+                        event.events = EPOLLIN | EPOLLET;
+                        Wrapper::EpollModifyFd(m_epollfd, m_udp_server6.fd(), event);
+                    }
                 }
             }
             else if (socket == &m_udp_client6)
@@ -92,7 +110,13 @@ void DnsForwarder::Server::Run()
                 }
                 else if (m_events[i].events & EPOLLOUT)
                 {
-                    m_udp_client6.SendTo();
+                    if (!m_udp_client6.SendTo())
+                    {
+                        epoll_event event;
+                        event.data.ptr = &m_udp_client6;
+                        event.events = EPOLLIN | EPOLLET;
+                        Wrapper::EpollModifyFd(m_epollfd, m_udp_client6.fd(), event);
+                    }
                 }
             }
         }
