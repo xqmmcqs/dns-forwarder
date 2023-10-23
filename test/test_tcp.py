@@ -1,11 +1,12 @@
 import dns.resolver
 import subprocess
 import sys
+import time
 import atexit
 
 
 nameservers = [
-    "2402:f000:1:801::8:28",
+    "166.111.8.28",
 ]
 test_case_list = [
     {"qname": "baidu.com", "rdtype": "A"},
@@ -18,10 +19,12 @@ p = subprocess.Popen(
 )
 atexit.register(p.terminate)
 
-test_res = dns.resolver.make_resolver_at("::1", port=10053)
+time.sleep(1)
+
+test_res = dns.resolver.make_resolver_at("127.0.0.1", port=10053)
 res = dns.resolver.make_resolver_at(nameservers[0], port=53)
 
 for test_case in test_case_list:
-    test_answer = test_res.resolve(**test_case)
-    answer = res.resolve(**test_case)
+    test_answer = test_res.resolve(**test_case, tcp=True)
+    answer = res.resolve(**test_case, tcp=True)
     assert test_answer.rrset == answer.rrset

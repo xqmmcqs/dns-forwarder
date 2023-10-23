@@ -37,3 +37,7 @@ add_test(NAME qtype
 add_test(NAME ipv6
     COMMAND ${PYTHON_TEST} ${PROJECT_SOURCE_DIR}/test/test_ipv6.py
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+
+add_test(NAME tcp
+    COMMAND ${PYTHON_TEST} ${PROJECT_SOURCE_DIR}/test/test_tcp.py
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})

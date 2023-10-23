@@ -13,11 +13,10 @@ test_case_list = [
     {"qname": "baidu.com", "rdtype": "TXT"},
 ]
 
-with open("nameserver.txt", "w") as f:
-    f.write("\n".join(nameservers))
-
 p = subprocess.Popen(
-    ["./build/dns-forwarder", "-d"], stderr=sys.stderr, stdout=sys.stdout
+    ["./build/dns-forwarder", "-d", "--nameservers=" + ",".join(nameservers)],
+    stderr=sys.stderr,
+    stdout=sys.stdout,
 )
 atexit.register(p.terminate)
 

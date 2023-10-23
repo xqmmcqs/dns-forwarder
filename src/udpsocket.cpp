@@ -1,7 +1,8 @@
 #include "udpsocket.h"
-#include "utils.h"
-#include <cstring>
+
 #include <stdexcept>
+
+#include "utils.h"
 
 using namespace std;
 
@@ -40,6 +41,11 @@ template <typename AddrT> bool DnsForwarder::UdpSocket<AddrT>::SendTo()
 
 template <typename AddrT> bool DnsForwarder::UdpSocket<AddrT>::SendTo(const AddrT &addr, const std::string &data)
 {
+    if (!send_queue.empty())
+    {
+        send_queue.push(make_pair(addr, data));
+        return false;
+    }
     if (!Wrapper::SendTo(m_sockfd, data.c_str(), data.size(), MSG_DONTWAIT, (struct sockaddr *)&addr, sizeof(addr)))
     {
         send_queue.push(make_pair(addr, data));

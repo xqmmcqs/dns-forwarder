@@ -15,8 +15,6 @@ template <typename AddrT> class UdpSocket
   public:
     UdpSocket();
     ~UdpSocket();
-    UdpSocket(const UdpSocket &) = delete;
-    UdpSocket &operator=(const UdpSocket &) = delete;
 
     int fd() const
     {

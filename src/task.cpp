@@ -45,3 +45,4 @@ template <typename TaskT> bool DnsForwarder::TaskPool<TaskT>::HasTask(uint16_t i
 }
 
 template class DnsForwarder::TaskPool<DnsForwarder::UdpTask>;
+template class DnsForwarder::TaskPool<DnsForwarder::TcpTask>;

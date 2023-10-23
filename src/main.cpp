@@ -1,6 +1,7 @@
 #include <getopt.h>
 
-#include <fstream>
+#include <algorithm>
+#include <sstream>
 #include <string>
 
 #include "server.h"
@@ -12,16 +13,20 @@ using namespace DnsForwarder;
 int main(int argc, char *argv[])
 {
     Logger::GetInstance().SetLevel(Logger::INFO);
-    string local_ip4("127.0.0.1");
+    string local_ip4("0.0.0.0");
     string local_ip6("::1");
     uint16_t local_port(10053);
+    string nameservers("8.8.8.8");
 
     while (true)
     {
-        static struct option long_options[] = {
-            {"help", no_argument, 0, 'h'},           {"debug", no_argument, 0, 'd'},
-            {"local-ipv4", required_argument, 0, 0}, {"local-ipv6", required_argument, 0, 0},
-            {"local-port", required_argument, 0, 0}, {0, 0, 0, 0}};
+        static struct option long_options[] = {{"help", no_argument, 0, 'h'},
+                                               {"debug", no_argument, 0, 'd'},
+                                               {"local-ipv4", required_argument, 0, 0},
+                                               {"local-ipv6", required_argument, 0, 0},
+                                               {"local-port", required_argument, 0, 0},
+                                               {"nameservers", required_argument, 0, 0},
+                                               {0, 0, 0, 0}};
         int option_index = 0;
         int c = getopt_long(argc, argv, "hd", long_options, &option_index);
         if (c == -1)
@@ -40,16 +45,21 @@ int main(int argc, char *argv[])
             case 4:
                 local_port = stoi(optarg);
                 break;
+            case 5:
+                nameservers = optarg;
+                break;
             }
+            break;
         case 'h':
             cout << "Usage: dns-forwarder [OPTION]..." << endl;
             cout << "Forward DNS queries to remote DNS server" << endl;
             cout << endl;
-            cout << "  -h, --help             display this help and exit" << endl;
-            cout << "  -d, --debug            enable debug mode" << endl;
-            cout << "      --local-ipv4=IP    local IPv4 address (default: 127.0.0.1)" << endl;
-            cout << "      --local-ipv6=IP    local IPv6 address (default: ::1)" << endl;
-            cout << "      --local-port=PORT  local port (default: 10053)" << endl;
+            cout << "  -h, --help                    display this help and exit" << endl;
+            cout << "  -d, --debug                   enable debug mode" << endl;
+            cout << "      --local-ipv4=IP           local IPv4 address (default: 127.0.0.1)" << endl;
+            cout << "      --local-ipv6=IP           local IPv6 address (default: ::1)" << endl;
+            cout << "      --local-port=PORT         local port (default: 10053)" << endl;
+            cout << "      --nameservers=IP1,IP2,... Do53 nameservers (default: 8.8.8.8)" << endl;
             return 0;
         case 'd':
             Logger::GetInstance().SetLevel(Logger::DEBUG);
@@ -65,9 +75,10 @@ int main(int argc, char *argv[])
     Wrapper::SockAddr4(local_ip4, local_port, local_addr4);
     Wrapper::SockAddr6(local_ip6, local_port, local_addr6);
     Server server(local_addr4, local_addr6);
-    ifstream fin("nameserver.txt");
+    replace(nameservers.begin(), nameservers.end(), ',', ' ');
+    istringstream ss(nameservers);
     string remote_ip;
-    while (fin >> remote_ip)
+    while (ss >> remote_ip)
     {
         if (remote_ip.find('.') != string::npos)
         {

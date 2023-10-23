@@ -76,6 +76,12 @@ void DnsForwarder::Wrapper::Close(int sockfd)
         throw runtime_error("Failed to close socket");
 }
 
+void DnsForwarder::Wrapper::SetSockOpt(int sockfd, int level, int optname, const void *optval, socklen_t optlen)
+{
+    if (setsockopt(sockfd, level, optname, optval, optlen) == -1)
+        throw runtime_error("Failed to set socket option");
+}
+
 ssize_t DnsForwarder::Wrapper::SendTo(int sockfd, const void *buf, size_t len, int flags, const sockaddr *dest_addr,
                                       socklen_t addrlen)
 {
@@ -156,7 +162,7 @@ void DnsForwarder::Wrapper::EpollAddFd(int epollfd, int sockfd, epoll_event &eve
     SetNonBlocking(sockfd);
 }
 
-void DnsForwarder::Wrapper::EpollRemoveFd(int epollfd, int sockfd)
+void DnsForwarder::Wrapper::EpollDelFd(int epollfd, int sockfd)
 {
     if (epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, nullptr) == -1)
         throw runtime_error("Failed to remove socket from epoll");

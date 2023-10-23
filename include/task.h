@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "dnspacket.h"
+#include "tcpsocket.h"
 #include "udpsocket.h"
 
 namespace DnsForwarder
@@ -43,6 +44,25 @@ struct UdpTask
     union {
         sockaddr_in addr;
         sockaddr_in6 addr6;
+    };
+    bool is_ipv6;
+};
+
+struct TcpTask
+{
+    TcpTask() = delete;
+    TcpTask(const DnsPacket &query_packet_, TcpServer4 *tcp_server4_)
+        : query_packet(query_packet_), tcp_server4(tcp_server4_), is_ipv6(false)
+    {
+    }
+    TcpTask(const DnsPacket &query_packet_, TcpServer6 *tcp_server6_)
+        : query_packet(query_packet_), tcp_server6(tcp_server6_), is_ipv6(true)
+    {
+    }
+    DnsPacket query_packet;
+    union {
+        TcpServer4 *tcp_server4;
+        TcpServer6 *tcp_server6;
     };
     bool is_ipv6;
 };
