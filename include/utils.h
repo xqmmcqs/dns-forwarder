@@ -54,6 +54,8 @@ class Logger
     static Logger GetInstance();
     static void SetLevel(LogLevel level);
     static std::string RawDataFormatter(const std::string &raw);
+    static std::string SocketFormatter(const sockaddr_in &addr);
+    static std::string SocketFormatter(const sockaddr_in6 &addr);
     void Log(std::string filename, int line, LogLevel message_level, const std::string &message);
 
   private:

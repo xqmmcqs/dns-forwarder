@@ -22,6 +22,22 @@ void DnsForwarder::Wrapper::HostToIp6(const string &host, uint8_t ip[16])
         throw invalid_argument("Invalid IPv6 address: " + host);
 }
 
+void DnsForwarder::Wrapper::IpToHost4(uint32_t ip, string &host)
+{
+    char buf[INET_ADDRSTRLEN];
+    if (!inet_ntop(AF_INET, &ip, buf, INET_ADDRSTRLEN))
+        throw invalid_argument("Invalid IPv4 address");
+    host = buf;
+}
+
+void DnsForwarder::Wrapper::IpToHost6(const uint8_t ip[16], string &host)
+{
+    char buf[INET6_ADDRSTRLEN];
+    if (!inet_ntop(AF_INET6, ip, buf, INET6_ADDRSTRLEN))
+        throw invalid_argument("Invalid IPv6 address");
+    host = buf;
+}
+
 void DnsForwarder::Wrapper::SockAddr4(const string &host, uint16_t port, sockaddr_in &addr)
 {
     addr.sin_family = AF_INET;
@@ -238,4 +254,18 @@ string DnsForwarder::Logger::RawDataFormatter(const string &raw)
         }
     }
     return std::move(ss.str());
+}
+
+string DnsForwarder::Logger::SocketFormatter(const sockaddr_in &addr)
+{
+    string ip;
+    Wrapper::IpToHost4(addr.sin_addr.s_addr, ip);
+    return ip + ":" + to_string(ntohs(addr.sin_port));
+}
+
+string DnsForwarder::Logger::SocketFormatter(const sockaddr_in6 &addr)
+{
+    string ip;
+    Wrapper::IpToHost6(addr.sin6_addr.s6_addr, ip);
+    return "[" + ip + "]:" + to_string(ntohs(addr.sin6_port));
 }

@@ -14,7 +14,9 @@ template <typename AddrT> void DnsForwarder::UdpServerRecvEvent<AddrT>::Handler(
     AddrT addr;
     string data;
     m_udp_server.ReceiveFrom(addr, data);
-    logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Received UDP DNS request:\n" + Logger::RawDataFormatter(data));
+    logger.Log(__FILE__, __LINE__, Logger::DEBUG,
+               "Received UDP DNS request from " + Logger::SocketFormatter(addr) + ":\n" +
+                   Logger::RawDataFormatter(data));
 
     DnsPacket packet;
     istringstream is(data);
@@ -25,9 +27,11 @@ template <typename AddrT> void DnsForwarder::UdpServerRecvEvent<AddrT>::Handler(
     ostringstream os;
     packet.serialize(os);
 
-    logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Send UDP DNS request:\n" + Logger::RawDataFormatter(os.str()));
     for (const auto &remote_addr : m_remote_addr4)
     {
+        logger.Log(__FILE__, __LINE__, Logger::DEBUG,
+                   "Send UDP DNS request to " + Logger::SocketFormatter(remote_addr) + ":\n" +
+                       Logger::RawDataFormatter(os.str()));
         if (m_udp_client4.SendTo(remote_addr, os.str()))
         {
             epoll_event event;
@@ -38,6 +42,9 @@ template <typename AddrT> void DnsForwarder::UdpServerRecvEvent<AddrT>::Handler(
     }
     for (const auto &remote_addr : m_remote_addr6)
     {
+        logger.Log(__FILE__, __LINE__, Logger::DEBUG,
+                   "Send UDP DNS request to " + Logger::SocketFormatter(remote_addr) + ":\n" +
+                       Logger::RawDataFormatter(os.str()));
         if (m_udp_client6.SendTo(remote_addr, os.str()))
         {
             epoll_event event;
@@ -54,7 +61,9 @@ template <typename AddrT> void DnsForwarder::UdpClientRecvEvent<AddrT>::Handler(
     AddrT addr;
     string data;
     m_udp_client.ReceiveFrom(addr, data);
-    logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Received UDP DNS response:\n" + Logger::RawDataFormatter(data));
+    logger.Log(__FILE__, __LINE__, Logger::DEBUG,
+               "Received UDP DNS response from " + Logger::SocketFormatter(addr) + ":\n" +
+                   Logger::RawDataFormatter(data));
 
     DnsPacket packet;
     istringstream is(data);
@@ -70,9 +79,11 @@ template <typename AddrT> void DnsForwarder::UdpClientRecvEvent<AddrT>::Handler(
     ostringstream os;
     packet.serialize(os);
 
-    logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Send UDP DNS response:\n" + Logger::RawDataFormatter(os.str()));
     if (task_ptr->is_ipv6)
     {
+        logger.Log(__FILE__, __LINE__, Logger::DEBUG,
+                   "Send UDP DNS response to " + Logger::SocketFormatter(task_ptr->addr6) + ":\n" +
+                       Logger::RawDataFormatter(os.str()));
         if (m_udp_server6.SendTo(task_ptr->addr6, os.str()))
         {
             epoll_event event;
@@ -83,6 +94,9 @@ template <typename AddrT> void DnsForwarder::UdpClientRecvEvent<AddrT>::Handler(
     }
     else
     {
+        logger.Log(__FILE__, __LINE__, Logger::DEBUG,
+                   "Send UDP DNS response to " + Logger::SocketFormatter(task_ptr->addr) + ":\n" +
+                       Logger::RawDataFormatter(os.str()));
         if (m_udp_server4.SendTo(task_ptr->addr, os.str()))
         {
             epoll_event event;
@@ -98,7 +112,8 @@ template <typename AddrT> void DnsForwarder::TcpServerAcceptEvent<AddrT>::Handle
     auto logger = Logger::GetInstance();
     AddrT addr;
     auto fd = m_tcp_listener.Accept(addr);
-    logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Accepted TCP connection.");
+    logger.Log(__FILE__, __LINE__, Logger::DEBUG,
+               "Accepted TCP connection from " + Logger::SocketFormatter(addr) + " on fd " + to_string(fd) + ".");
     auto tcp_server = new TcpServer<AddrT>(fd);
     m_tcp_server.insert(tcp_server);
     epoll_event event;
@@ -117,11 +132,12 @@ template <typename AddrT> void DnsForwarder::TcpServerRecvEvent<AddrT>::Handler(
     size_t n = 0;
     while (n < data.size())
     {
-        size_t len = data[n] * 256 + data[n + 1];
+        size_t len = static_cast<uint8_t>(data[n]) * 256 + static_cast<uint8_t>(data[n + 1]);
         string packet_data = data.substr(n + 2, len);
         n += len + 2;
         logger.Log(__FILE__, __LINE__, Logger::DEBUG,
-                   "Received TCP DNS request:\n" + Logger::RawDataFormatter(packet_data));
+                   "Received TCP DNS request on fd " + to_string(m_tcp_server->fd()) + ":\n" +
+                       Logger::RawDataFormatter(packet_data));
 
         DnsPacket packet;
         istringstream is(packet_data);
@@ -132,10 +148,12 @@ template <typename AddrT> void DnsForwarder::TcpServerRecvEvent<AddrT>::Handler(
         ostringstream os;
         packet.serialize(os);
 
-        logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Send TCP DNS request:\n" + Logger::RawDataFormatter(os.str()));
         for (const auto &tcp_client : m_tcp_client4)
         {
-            if (tcp_client->Send(string({len / 256, len % 256}) + os.str()))
+            logger.Log(__FILE__, __LINE__, Logger::DEBUG,
+                       "Send TCP DNS request on fd " + to_string(tcp_client->fd()) + ":\n" +
+                           Logger::RawDataFormatter(os.str()));
+            if (tcp_client->Send(string({static_cast<char>(len / 256), static_cast<char>(len % 256)}) + os.str()))
             {
                 epoll_event event;
                 event.data.ptr = tcp_client;
@@ -145,7 +163,10 @@ template <typename AddrT> void DnsForwarder::TcpServerRecvEvent<AddrT>::Handler(
         }
         for (const auto &tcp_client : m_tcp_client6)
         {
-            if (tcp_client->Send(string({len / 256, len % 256}) + os.str()))
+            logger.Log(__FILE__, __LINE__, Logger::DEBUG,
+                       "Send TCP DNS request on fd " + to_string(tcp_client->fd()) + ":\n" +
+                           Logger::RawDataFormatter(os.str()));
+            if (tcp_client->Send(string({static_cast<char>(len / 256), static_cast<char>(len % 256)}) + os.str()))
             {
                 epoll_event event;
                 event.data.ptr = tcp_client;
@@ -166,11 +187,12 @@ template <typename AddrT> void DnsForwarder::TcpClientRecvEvent<AddrT>::Handler(
     size_t n = 0;
     while (n < data.size())
     {
-        size_t len = data[n] * 256 + data[n + 1];
+        size_t len = static_cast<uint8_t>(data[n]) * 256 + static_cast<uint8_t>(data[n + 1]);
         string packet_data = data.substr(n + 2, len);
         n += len + 2;
         logger.Log(__FILE__, __LINE__, Logger::DEBUG,
-                   "Received TCP DNS response:\n" + Logger::RawDataFormatter(packet_data));
+                   "Received TCP DNS response on fd " + to_string(m_tcp_client->fd()) + ":\n" +
+                       Logger::RawDataFormatter(packet_data));
 
         DnsPacket packet;
         istringstream is(packet_data);
@@ -186,12 +208,15 @@ template <typename AddrT> void DnsForwarder::TcpClientRecvEvent<AddrT>::Handler(
         ostringstream os;
         packet.serialize(os);
 
-        logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Send TCP DNS response:\n" + Logger::RawDataFormatter(os.str()));
         if (task_ptr->is_ipv6)
         {
+            logger.Log(__FILE__, __LINE__, Logger::DEBUG,
+                       "Send TCP DNS response on fd " + to_string(task_ptr->tcp_server6->fd()) + ":\n" +
+                           Logger::RawDataFormatter(os.str()));
             if (m_tcp_server6.find(task_ptr->tcp_server6) != m_tcp_server6.end())
             {
-                if (task_ptr->tcp_server6->Send(string({len / 256, len % 256}) + os.str()))
+                if (task_ptr->tcp_server6->Send(string({static_cast<char>(len / 256), static_cast<char>(len % 256)}) +
+                                                os.str()))
                 {
                     epoll_event event;
                     event.data.ptr = task_ptr->tcp_server6;
@@ -202,9 +227,13 @@ template <typename AddrT> void DnsForwarder::TcpClientRecvEvent<AddrT>::Handler(
         }
         else
         {
+            logger.Log(__FILE__, __LINE__, Logger::DEBUG,
+                       "Send TCP DNS response on fd " + to_string(task_ptr->tcp_server4->fd()) + ":\n" +
+                           Logger::RawDataFormatter(os.str()));
             if (m_tcp_server4.find(task_ptr->tcp_server4) != m_tcp_server4.end())
             {
-                if (task_ptr->tcp_server4->Send(string({len / 256, len % 256}) + os.str()))
+                if (task_ptr->tcp_server4->Send(string({static_cast<char>(len / 256), static_cast<char>(len % 256)}) +
+                                                os.str()))
                 {
                     epoll_event event;
                     event.data.ptr = task_ptr->tcp_server4;
@@ -220,6 +249,7 @@ template <typename AddrT> void DnsForwarder::TcpServerCloseEvent<AddrT>::Handler
 {
     auto logger = Logger::GetInstance();
     Wrapper::EpollDelFd(m_epollfd, m_tcp_server->fd());
+    logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Closed TCP server on fd " + to_string(m_tcp_server->fd()) + ".");
     m_tcp_server_set.erase(m_tcp_server);
     delete m_tcp_server;
 }
@@ -231,6 +261,7 @@ template <typename AddrT> void DnsForwarder::TcpClientCloseEvent<AddrT>::Handler
     Wrapper::EpollDelFd(m_epollfd, m_tcp_client->fd());
     m_tcp_client_set.erase(m_tcp_client);
     delete m_tcp_client;
+    logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Restart TCP client on fd " + to_string(m_tcp_client->fd()) + ".");
 
     m_tcp_client = new TcpClient<AddrT>(addr);
     m_tcp_client_set.insert(m_tcp_client);

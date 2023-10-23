@@ -37,9 +37,8 @@ template <typename AddrT> class TcpSocket : public TcpBase<AddrT>
     void Receive(std::string &data);
 
   protected:
-    std::vector<char> m_send_buf;
-    std::vector<char> m_recv_buf;
-    std::vector<int> m_recv_len;
+    std::vector<uint8_t> m_send_buf;
+    std::vector<uint8_t> m_recv_buf;
 };
 
 template <typename AddrT> class TcpClient : public TcpSocket<AddrT>
@@ -71,7 +70,7 @@ template <typename AddrT> class TcpListener : public TcpBase<AddrT>
     TcpListener() = delete;
     TcpListener(const AddrT &addr);
     ~TcpListener() = default;
-    int Accept(AddrT addr);
+    int Accept(AddrT &addr);
 };
 
 typedef TcpClient<sockaddr_in> TcpClient4;

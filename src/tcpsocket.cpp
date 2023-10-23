@@ -30,8 +30,8 @@ template <typename AddrT> DnsForwarder::TcpBase<AddrT>::~TcpBase()
 
 template <typename AddrT> bool DnsForwarder::TcpSocket<AddrT>::Send()
 {
-    int n = Wrapper::Send(this->m_sockfd, m_send_buf.data(), m_send_buf.size(), 0);
-    m_send_buf = vector<char>(make_move_iterator(m_send_buf.begin() + n), make_move_iterator(m_send_buf.end()));
+    auto n = Wrapper::Send(this->m_sockfd, m_send_buf.data(), m_send_buf.size(), 0);
+    m_send_buf = vector<uint8_t>(make_move_iterator(m_send_buf.begin() + n), make_move_iterator(m_send_buf.end()));
     return !m_send_buf.empty();
 }
 
@@ -42,7 +42,7 @@ template <typename AddrT> bool DnsForwarder::TcpSocket<AddrT>::Send(const std::s
         m_send_buf.insert(m_send_buf.end(), data.begin(), data.end());
         return false;
     }
-    int n = Wrapper::Send(this->m_sockfd, data.c_str(), data.size(), 0);
+    auto n = Wrapper::Send(this->m_sockfd, data.c_str(), data.size(), 0);
     if (n < data.size())
     {
         m_send_buf.insert(m_send_buf.end(), data.begin() + n, data.end());
@@ -53,19 +53,19 @@ template <typename AddrT> bool DnsForwarder::TcpSocket<AddrT>::Send(const std::s
 
 template <typename AddrT> void DnsForwarder::TcpSocket<AddrT>::Receive(std::string &data)
 {
-    char buf[65536];
-    ssize_t nrecv = Wrapper::Recv(this->m_sockfd, buf, sizeof(buf), 0);
+    uint8_t buf[65536];
+    auto nrecv = Wrapper::Recv(this->m_sockfd, buf, sizeof(buf), 0);
     if (nrecv)
         m_recv_buf.insert(m_recv_buf.end(), buf, buf + nrecv);
     if (m_recv_buf.empty())
         return;
     int n = 0;
-    while (n < m_recv_buf.size() && n + m_recv_buf[n] * 257 + m_recv_buf[n + 1] + 2 <= m_recv_buf.size())
+    while (n < m_recv_buf.size() && n + m_recv_buf[n] * 256 + m_recv_buf[n + 1] + 2 <= m_recv_buf.size())
         n += m_recv_buf[n] * 256 + m_recv_buf[n + 1] + 2;
     if (n)
     {
         data = string(make_move_iterator(m_recv_buf.begin()), make_move_iterator(m_recv_buf.begin() + n));
-        m_recv_buf = vector<char>(make_move_iterator(m_recv_buf.begin() + n), make_move_iterator(m_recv_buf.end()));
+        m_recv_buf = vector<uint8_t>(make_move_iterator(m_recv_buf.begin() + n), make_move_iterator(m_recv_buf.end()));
     }
     return;
 }
@@ -81,7 +81,7 @@ template <typename AddrT> DnsForwarder::TcpListener<AddrT>::TcpListener(const Ad
     Wrapper::Listen(this->m_sockfd, 5);
 }
 
-template <typename AddrT> int DnsForwarder::TcpListener<AddrT>::Accept(AddrT addr)
+template <typename AddrT> int DnsForwarder::TcpListener<AddrT>::Accept(AddrT &addr)
 {
     socklen_t addrlen;
     return Wrapper::Accept(this->m_sockfd, (sockaddr *)&addr, &addrlen);
