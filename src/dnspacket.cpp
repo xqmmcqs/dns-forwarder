@@ -33,7 +33,7 @@ void DnsForwarder::DomainName::parse(istringstream &is)
     char tmp[65];
     while (true)
     {
-        if ((is.peek() >> 6) & 0x3)
+        if (((is.peek() >> 6) & 0x3) == 0x3)
         {
             is.read(tmp, 2);
             name.append(tmp, 2);
@@ -60,12 +60,12 @@ void DnsForwarder::DomainName::serialize(ostringstream &os) const
     auto tmp = name.c_str();
     while (pos < name.size())
     {
-        int len = name.find('.', pos) - pos;
-        if (len < 0)
+        if (((tmp[pos] >> 6) & 0x3) == 0x3)
         {
             os.write(tmp + pos, 2);
             return;
         }
+        int len = name.find('.', pos) - pos;
         os.put(len);
         os.write(tmp + pos, len);
         pos += len + 1;

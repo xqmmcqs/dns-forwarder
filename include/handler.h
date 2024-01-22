@@ -32,6 +32,8 @@ void UdpServerRecvHandler(const UdpServer<AddrT> &udp_server, UdpClient4 &udp_cl
     packet.header.id = index;
     ostringstream os;
     packet.serialize(os);
+    // logger.Log(__FILE__, __LINE__, Logger::INFO,
+    //            "Receive UDP DNS request of domain: " + packet.questions[0].qname.name);
 
     for (const auto &remote_addr : remote_addr4)
     {
@@ -77,6 +79,8 @@ void UdpClientRecvHandler(const UdpClient<AddrT> &udp_client, UdpServer4 &udp_se
     packet.header.id = task_ptr->query_packet.header.id;
     ostringstream os;
     packet.serialize(os);
+    // logger.Log(__FILE__, __LINE__, Logger::INFO,
+    //            "Receive UDP DNS response of domain: " + packet.questions[0].qname.name);
 
     if (task_ptr->is_ipv6)
     {
@@ -108,8 +112,10 @@ void TcpServerAcceptHandler(const TcpListener<AddrT> &tcp_listener,
     logger.Log(__FILE__, __LINE__, Logger::DEBUG,
                "Accepted TCP connection from " + Logger::SocketFormatter(addr) + " on fd " + to_string(fd) + ".");
     auto tcp_server = new TcpServer<AddrT>(fd);
-    unique_lock<shared_mutex> lock(tcp_server_mutex);
-    tcp_server_set.insert(tcp_server);
+    {
+        unique_lock<shared_mutex> lock(tcp_server_mutex);
+        tcp_server_set.insert(tcp_server);
+    }
     Wrapper::EpollAddFd(epollfd, fd, tcp_server, EPOLLIN | EPOLLET | EPOLLRDHUP);
 }
 
@@ -143,24 +149,29 @@ void TcpServerRecvHandler(TcpServer<AddrT> *tcp_server, const std::unordered_set
         ostringstream os;
         packet.serialize(os);
 
-        shared_lock<shared_mutex> lock(tcp_client4_mutex);
-        for (const auto &tcp_client : tcp_client4)
         {
-            logger.Log(__FILE__, __LINE__, Logger::DEBUG,
-                       "Send TCP DNS request on fd " + to_string(tcp_client->fd()) + ":\n" +
-                           Logger::RawDataFormatter(os.str()));
-            if (tcp_client->Send(string({static_cast<char>(len / 256), static_cast<char>(len % 256)}) + os.str()))
-                Wrapper::EpollModFd(epollfd, tcp_client->fd(), tcp_client, EPOLLIN | EPOLLET | EPOLLOUT | EPOLLRDHUP);
+            shared_lock<shared_mutex> lock(tcp_client4_mutex);
+            for (const auto &tcp_client : tcp_client4)
+            {
+                logger.Log(__FILE__, __LINE__, Logger::DEBUG,
+                           "Send TCP DNS request on fd " + to_string(tcp_client->fd()) + ":\n" +
+                               Logger::RawDataFormatter(os.str()));
+                if (tcp_client->Send(string({static_cast<char>(len / 256), static_cast<char>(len % 256)}) + os.str()))
+                    Wrapper::EpollModFd(epollfd, tcp_client->fd(), tcp_client,
+                                        EPOLLIN | EPOLLET | EPOLLOUT | EPOLLRDHUP);
+            }
         }
-        lock.unlock();
-        lock = shared_lock<shared_mutex>(tcp_client6_mutex);
-        for (const auto &tcp_client : tcp_client6)
         {
-            logger.Log(__FILE__, __LINE__, Logger::DEBUG,
-                       "Send TCP DNS request on fd " + to_string(tcp_client->fd()) + ":\n" +
-                           Logger::RawDataFormatter(os.str()));
-            if (tcp_client->Send(string({static_cast<char>(len / 256), static_cast<char>(len % 256)}) + os.str()))
-                Wrapper::EpollModFd(epollfd, tcp_client->fd(), tcp_client, EPOLLIN | EPOLLET | EPOLLOUT | EPOLLRDHUP);
+            shared_lock<shared_mutex> lock(tcp_client6_mutex);
+            for (const auto &tcp_client : tcp_client6)
+            {
+                logger.Log(__FILE__, __LINE__, Logger::DEBUG,
+                           "Send TCP DNS request on fd " + to_string(tcp_client->fd()) + ":\n" +
+                               Logger::RawDataFormatter(os.str()));
+                if (tcp_client->Send(string({static_cast<char>(len / 256), static_cast<char>(len % 256)}) + os.str()))
+                    Wrapper::EpollModFd(epollfd, tcp_client->fd(), tcp_client,
+                                        EPOLLIN | EPOLLET | EPOLLOUT | EPOLLRDHUP);
+            }
         }
     }
 }
@@ -205,13 +216,15 @@ void TcpClientRecvHandler(TcpClient<AddrT> *tcp_client, const std::unordered_set
             logger.Log(__FILE__, __LINE__, Logger::DEBUG,
                        "Send TCP DNS response on fd " + to_string(task_ptr->tcp_server6->fd()) + ":\n" +
                            Logger::RawDataFormatter(os.str()));
-            shared_lock<shared_mutex> lock(tcp_server6_mutex);
-            if (tcp_server6.find(task_ptr->tcp_server6) != tcp_server6.end())
             {
-                if (task_ptr->tcp_server6->Send(string({static_cast<char>(len / 256), static_cast<char>(len % 256)}) +
-                                                os.str()))
-                    Wrapper::EpollModFd(epollfd, task_ptr->tcp_server6->fd(), task_ptr->tcp_server6,
-                                        EPOLLIN | EPOLLET | EPOLLOUT | EPOLLRDHUP);
+                shared_lock<shared_mutex> lock(tcp_server6_mutex);
+                if (tcp_server6.find(task_ptr->tcp_server6) != tcp_server6.end())
+                {
+                    if (task_ptr->tcp_server6->Send(
+                            string({static_cast<char>(len / 256), static_cast<char>(len % 256)}) + os.str()))
+                        Wrapper::EpollModFd(epollfd, task_ptr->tcp_server6->fd(), task_ptr->tcp_server6,
+                                            EPOLLIN | EPOLLET | EPOLLOUT | EPOLLRDHUP);
+                }
             }
         }
         else
@@ -219,13 +232,15 @@ void TcpClientRecvHandler(TcpClient<AddrT> *tcp_client, const std::unordered_set
             logger.Log(__FILE__, __LINE__, Logger::DEBUG,
                        "Send TCP DNS response on fd " + to_string(task_ptr->tcp_server4->fd()) + ":\n" +
                            Logger::RawDataFormatter(os.str()));
-            shared_lock<shared_mutex> lock(tcp_server4_mutex);
-            if (tcp_server4.find(task_ptr->tcp_server4) != tcp_server4.end())
             {
-                if (task_ptr->tcp_server4->Send(string({static_cast<char>(len / 256), static_cast<char>(len % 256)}) +
-                                                os.str()))
-                    Wrapper::EpollModFd(epollfd, task_ptr->tcp_server4->fd(), task_ptr->tcp_server4,
-                                        EPOLLIN | EPOLLET | EPOLLOUT | EPOLLRDHUP);
+                shared_lock<shared_mutex> lock(tcp_server4_mutex);
+                if (tcp_server4.find(task_ptr->tcp_server4) != tcp_server4.end())
+                {
+                    if (task_ptr->tcp_server4->Send(
+                            string({static_cast<char>(len / 256), static_cast<char>(len % 256)}) + os.str()))
+                        Wrapper::EpollModFd(epollfd, task_ptr->tcp_server4->fd(), task_ptr->tcp_server4,
+                                            EPOLLIN | EPOLLET | EPOLLOUT | EPOLLRDHUP);
+                }
             }
         }
     }
@@ -239,8 +254,10 @@ void TcpServerCloseHandler(TcpServer<AddrT> *tcp_server, std::unordered_set<TcpS
     auto logger = Logger::GetInstance();
     Wrapper::EpollDelFd(epollfd, tcp_server->fd());
     logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Closed TCP server on fd " + to_string(tcp_server->fd()) + ".");
-    unique_lock<shared_mutex> lock(tcp_server_mutex);
-    tcp_server_set.erase(tcp_server);
+    {
+        unique_lock<shared_mutex> lock(tcp_server_mutex);
+        tcp_server_set.erase(tcp_server);
+    }
     delete tcp_server;
 }
 
@@ -252,8 +269,10 @@ void TcpClientCloseHandler(TcpClient<AddrT> *tcp_client, std::unordered_set<TcpC
     auto logger = Logger::GetInstance();
     auto addr = tcp_client->addr();
     Wrapper::EpollDelFd(epollfd, tcp_client->fd());
-    unique_lock<shared_mutex> lock(tcp_client_mutex);
-    tcp_client_set.erase(tcp_client);
+    {
+        unique_lock<shared_mutex> lock(tcp_client_mutex);
+        tcp_client_set.erase(tcp_client);
+    }
     delete tcp_client;
     logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Restart TCP client on fd " + to_string(tcp_client->fd()) + ".");
 

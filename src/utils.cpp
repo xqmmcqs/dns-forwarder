@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <chrono>
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
@@ -228,19 +229,21 @@ void DnsForwarder::Logger::Log(string filename, int line, LogLevel message_level
             log_type = "[DEBUG] ";
             break;
         case INFO:
-            log_type = "[INFO] ";
+            log_type = "[INFO ] ";
             break;
         case WARNING:
-            log_type = "[WARN] ";
+            log_type = "[WARN ] ";
             break;
         case ERROR:
             log_type = "[ERROR] ";
             break;
         default:
-            log_type = "[NONE] ";
+            log_type = "[NONE ] ";
             break;
         }
-        cerr << log_type + filename + ":" + to_string(line) + " " + message << endl;
+        cerr << log_type
+             << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count()
+             << " " + filename + ":" + to_string(line) + " " + message << endl;
     }
 }
 

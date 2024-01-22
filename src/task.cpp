@@ -10,11 +10,16 @@ template <typename TaskT> DnsForwarder::TaskPool<TaskT>::TaskPool() : m_index_qu
 
 template <typename TaskT> uint16_t DnsForwarder::TaskPool<TaskT>::PutTask(shared_ptr<TaskT> task)
 {
-    unique_lock<shared_mutex> queue_lock(m_queue_mutex);
-    uint16_t index = m_index_queue.front();
-    m_index_queue.pop();
-    unique_lock<shared_mutex> pool_lock(m_pool_mutex);
-    m_pool[index] = task;
+    uint16_t index;
+    {
+        unique_lock<shared_mutex> queue_lock(m_queue_mutex);
+        index = m_index_queue.front();
+        m_index_queue.pop();
+    }
+    {
+        unique_lock<shared_mutex> pool_lock(m_pool_mutex);
+        m_pool[index] = task;
+    }
     return index;
 }
 
