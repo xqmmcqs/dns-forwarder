@@ -4,7 +4,6 @@
 
 #include <iostream>
 
-#include "event.h"
 #include "handler.h"
 #include "threadpool.h"
 
