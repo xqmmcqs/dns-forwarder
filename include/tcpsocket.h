@@ -1,9 +1,9 @@
-#ifndef _TCPSOCKET_H_
-#define _TCPSOCKET_H_
+#pragma once
 
 #include <arpa/inet.h>
 #include <cstdint>
 
+#include <mutex>
 #include <queue>
 #include <string>
 #include <utility>
@@ -37,6 +37,8 @@ template <typename AddrT> class TcpSocket : public TcpBase<AddrT>
     void Receive(std::string &data);
 
   protected:
+    std::mutex m_send_mutex;
+    std::mutex m_recv_mutex;
     std::vector<uint8_t> m_send_buf;
     std::vector<uint8_t> m_recv_buf;
 };
@@ -70,7 +72,7 @@ template <typename AddrT> class TcpListener : public TcpBase<AddrT>
     TcpListener() = delete;
     TcpListener(const AddrT &addr);
     ~TcpListener() = default;
-    int Accept(AddrT &addr);
+    int Accept(AddrT &addr) const;
 };
 
 typedef TcpClient<sockaddr_in> TcpClient4;
@@ -80,5 +82,3 @@ typedef TcpServer<sockaddr_in6> TcpServer6;
 typedef TcpListener<sockaddr_in> TcpListener4;
 typedef TcpListener<sockaddr_in6> TcpListener6;
 } // namespace DnsForwarder
-
-#endif // _TCPSOCKET_H_

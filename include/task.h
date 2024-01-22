@@ -1,7 +1,7 @@
-#ifndef _TASK_H_
-#define _TASK_H_
+#pragma once
 
 #include <memory>
+#include <shared_mutex>
 
 #include "dnspacket.h"
 #include "tcpsocket.h"
@@ -25,6 +25,8 @@ template <typename TaskT> class TaskPool
 
   private:
     constexpr static int m_max_index = 65535;
+    mutable std::shared_mutex m_queue_mutex;
+    mutable std::shared_mutex m_pool_mutex;
     std::queue<uint16_t> m_index_queue;
     std::shared_ptr<TaskT> m_pool[m_max_index + 1];
 };
@@ -67,5 +69,3 @@ struct TcpTask
     bool is_ipv6;
 };
 } // namespace DnsForwarder
-
-#endif // _TASK_H_

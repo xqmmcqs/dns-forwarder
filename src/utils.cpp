@@ -171,8 +171,11 @@ int DnsForwarder::Wrapper::SetNonBlocking(int sockfd)
     return old_flags;
 }
 
-void DnsForwarder::Wrapper::EpollAddFd(int epollfd, int sockfd, epoll_event &event)
+void DnsForwarder::Wrapper::EpollAddFd(int epollfd, int sockfd, void *ptr, uint32_t events)
 {
+    epoll_event event;
+    event.data.ptr = ptr;
+    event.events = events;
     if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &event) == -1)
         throw runtime_error("Failed to add socket to epoll");
     SetNonBlocking(sockfd);
@@ -184,8 +187,11 @@ void DnsForwarder::Wrapper::EpollDelFd(int epollfd, int sockfd)
         throw runtime_error("Failed to remove socket from epoll");
 }
 
-void DnsForwarder::Wrapper::EpollModifyFd(int epollfd, int sockfd, epoll_event &event)
+void DnsForwarder::Wrapper::EpollModFd(int epollfd, int sockfd, void *ptr, uint32_t events)
 {
+    epoll_event event;
+    event.data.ptr = ptr;
+    event.events = events;
     if (epoll_ctl(epollfd, EPOLL_CTL_MOD, sockfd, &event) == -1)
         throw runtime_error("Failed to modify socket in epoll");
 }

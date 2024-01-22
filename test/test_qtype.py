@@ -8,7 +8,7 @@ nameservers = ["166.111.8.28"]
 test_case_list = [
     {"qname": "baidu.com", "rdtype": "A"},
     {"qname": "byr.pt", "rdtype": "AAAA"},
-    {"qname": "xqmmcqs.com", "rdtype": "CNAME"},
+    {"qname": "blog.xqmmcqs.com", "rdtype": "CNAME"},
     {"qname": "baidu.com", "rdtype": "MX"},
     {"qname": "baidu.com", "rdtype": "TXT"},
 ]

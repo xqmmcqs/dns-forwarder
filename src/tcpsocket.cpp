@@ -30,6 +30,7 @@ template <typename AddrT> DnsForwarder::TcpBase<AddrT>::~TcpBase()
 
 template <typename AddrT> bool DnsForwarder::TcpSocket<AddrT>::Send()
 {
+    unique_lock<mutex> lock(m_send_mutex);
     auto n = Wrapper::Send(this->m_sockfd, m_send_buf.data(), m_send_buf.size(), 0);
     m_send_buf = vector<uint8_t>(make_move_iterator(m_send_buf.begin() + n), make_move_iterator(m_send_buf.end()));
     return !m_send_buf.empty();
@@ -37,6 +38,7 @@ template <typename AddrT> bool DnsForwarder::TcpSocket<AddrT>::Send()
 
 template <typename AddrT> bool DnsForwarder::TcpSocket<AddrT>::Send(const std::string &data)
 {
+    unique_lock<mutex> lock(m_send_mutex);
     if (!m_send_buf.empty())
     {
         m_send_buf.insert(m_send_buf.end(), data.begin(), data.end());
@@ -55,6 +57,7 @@ template <typename AddrT> void DnsForwarder::TcpSocket<AddrT>::Receive(std::stri
 {
     uint8_t buf[65536];
     auto nrecv = Wrapper::Recv(this->m_sockfd, buf, sizeof(buf), 0);
+    unique_lock<mutex> lock(m_recv_mutex);
     if (nrecv)
         m_recv_buf.insert(m_recv_buf.end(), buf, buf + nrecv);
     if (m_recv_buf.empty())
@@ -81,7 +84,7 @@ template <typename AddrT> DnsForwarder::TcpListener<AddrT>::TcpListener(const Ad
     Wrapper::Listen(this->m_sockfd, 5);
 }
 
-template <typename AddrT> int DnsForwarder::TcpListener<AddrT>::Accept(AddrT &addr)
+template <typename AddrT> int DnsForwarder::TcpListener<AddrT>::Accept(AddrT &addr) const
 {
     socklen_t addrlen;
     return Wrapper::Accept(this->m_sockfd, (sockaddr *)&addr, &addrlen);

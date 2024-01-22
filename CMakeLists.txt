@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(dns-forwarder VERSION 0.1.0 LANGUAGES C CXX)
+set (CMAKE_CXX_STANDARD 17)
 
 aux_source_directory(${PROJECT_SOURCE_DIR}/src SOURCE_FILES)
 add_executable(dns-forwarder ${SOURCE_FILES})

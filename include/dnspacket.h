@@ -1,5 +1,4 @@
-#ifndef _DNSPACKET_H_
-#define _DNSPACKET_H_
+#pragma once
 
 #include <arpa/inet.h>
 #include <cstdint>
@@ -123,5 +122,3 @@ template <typename T> void Serialize(std::ostringstream &os, const T &t)
     t.serialize(os);
 }
 } // namespace DnsForwarder
-
-#endif // _DNSPACKET_H_

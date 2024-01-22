@@ -33,12 +33,7 @@ template <typename AddrT> void DnsForwarder::UdpServerRecvEvent<AddrT>::Handler(
                    "Send UDP DNS request to " + Logger::SocketFormatter(remote_addr) + ":\n" +
                        Logger::RawDataFormatter(os.str()));
         if (m_udp_client4.SendTo(remote_addr, os.str()))
-        {
-            epoll_event event;
-            event.data.ptr = &m_udp_client4;
-            event.events = EPOLLIN | EPOLLET | EPOLLOUT;
-            Wrapper::EpollModifyFd(m_epollfd, m_udp_client4.fd(), event);
-        }
+            Wrapper::EpollModFd(m_epollfd, m_udp_client4.fd(), &m_udp_client4, EPOLLIN | EPOLLET | EPOLLOUT);
     }
     for (const auto &remote_addr : m_remote_addr6)
     {
@@ -46,12 +41,7 @@ template <typename AddrT> void DnsForwarder::UdpServerRecvEvent<AddrT>::Handler(
                    "Send UDP DNS request to " + Logger::SocketFormatter(remote_addr) + ":\n" +
                        Logger::RawDataFormatter(os.str()));
         if (m_udp_client6.SendTo(remote_addr, os.str()))
-        {
-            epoll_event event;
-            event.data.ptr = &m_udp_client6;
-            event.events = EPOLLIN | EPOLLET | EPOLLOUT;
-            Wrapper::EpollModifyFd(m_epollfd, m_udp_client6.fd(), event);
-        }
+            Wrapper::EpollModFd(m_epollfd, m_udp_client6.fd(), &m_udp_client6, EPOLLIN | EPOLLET | EPOLLOUT);
     }
 }
 
@@ -85,12 +75,7 @@ template <typename AddrT> void DnsForwarder::UdpClientRecvEvent<AddrT>::Handler(
                    "Send UDP DNS response to " + Logger::SocketFormatter(task_ptr->addr6) + ":\n" +
                        Logger::RawDataFormatter(os.str()));
         if (m_udp_server6.SendTo(task_ptr->addr6, os.str()))
-        {
-            epoll_event event;
-            event.data.ptr = &m_udp_server6;
-            event.events = EPOLLIN | EPOLLET | EPOLLOUT;
-            Wrapper::EpollModifyFd(m_epollfd, m_udp_server6.fd(), event);
-        }
+            Wrapper::EpollModFd(m_epollfd, m_udp_server6.fd(), &m_udp_server6, EPOLLIN | EPOLLET | EPOLLOUT);
     }
     else
     {
@@ -98,12 +83,7 @@ template <typename AddrT> void DnsForwarder::UdpClientRecvEvent<AddrT>::Handler(
                    "Send UDP DNS response to " + Logger::SocketFormatter(task_ptr->addr) + ":\n" +
                        Logger::RawDataFormatter(os.str()));
         if (m_udp_server4.SendTo(task_ptr->addr, os.str()))
-        {
-            epoll_event event;
-            event.data.ptr = &m_udp_server4;
-            event.events = EPOLLIN | EPOLLET | EPOLLOUT;
-            Wrapper::EpollModifyFd(m_epollfd, m_udp_server4.fd(), event);
-        }
+            Wrapper::EpollModFd(m_epollfd, m_udp_server4.fd(), &m_udp_server4, EPOLLIN | EPOLLET | EPOLLOUT);
     }
 }
 
@@ -115,11 +95,9 @@ template <typename AddrT> void DnsForwarder::TcpServerAcceptEvent<AddrT>::Handle
     logger.Log(__FILE__, __LINE__, Logger::DEBUG,
                "Accepted TCP connection from " + Logger::SocketFormatter(addr) + " on fd " + to_string(fd) + ".");
     auto tcp_server = new TcpServer<AddrT>(fd);
+    unique_lock<shared_mutex> lock(m_tcp_server_mutex);
     m_tcp_server.insert(tcp_server);
-    epoll_event event;
-    event.data.ptr = tcp_server;
-    event.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
-    Wrapper::EpollAddFd(m_epollfd, fd, event);
+    Wrapper::EpollAddFd(m_epollfd, fd, tcp_server, EPOLLIN | EPOLLET | EPOLLRDHUP);
 }
 
 template <typename AddrT> void DnsForwarder::TcpServerRecvEvent<AddrT>::Handler()
@@ -148,31 +126,24 @@ template <typename AddrT> void DnsForwarder::TcpServerRecvEvent<AddrT>::Handler(
         ostringstream os;
         packet.serialize(os);
 
+        shared_lock<shared_mutex> lock(m_tcp_client4_mutex);
         for (const auto &tcp_client : m_tcp_client4)
         {
             logger.Log(__FILE__, __LINE__, Logger::DEBUG,
                        "Send TCP DNS request on fd " + to_string(tcp_client->fd()) + ":\n" +
                            Logger::RawDataFormatter(os.str()));
             if (tcp_client->Send(string({static_cast<char>(len / 256), static_cast<char>(len % 256)}) + os.str()))
-            {
-                epoll_event event;
-                event.data.ptr = tcp_client;
-                event.events = EPOLLIN | EPOLLET | EPOLLOUT | EPOLLRDHUP;
-                Wrapper::EpollModifyFd(m_epollfd, tcp_client->fd(), event);
-            }
+                Wrapper::EpollModFd(m_epollfd, tcp_client->fd(), tcp_client, EPOLLIN | EPOLLET | EPOLLOUT | EPOLLRDHUP);
         }
+        lock.unlock();
+        lock = shared_lock<shared_mutex>(m_tcp_client6_mutex);
         for (const auto &tcp_client : m_tcp_client6)
         {
             logger.Log(__FILE__, __LINE__, Logger::DEBUG,
                        "Send TCP DNS request on fd " + to_string(tcp_client->fd()) + ":\n" +
                            Logger::RawDataFormatter(os.str()));
             if (tcp_client->Send(string({static_cast<char>(len / 256), static_cast<char>(len % 256)}) + os.str()))
-            {
-                epoll_event event;
-                event.data.ptr = tcp_client;
-                event.events = EPOLLIN | EPOLLET | EPOLLOUT | EPOLLRDHUP;
-                Wrapper::EpollModifyFd(m_epollfd, tcp_client->fd(), event);
-            }
+                Wrapper::EpollModFd(m_epollfd, tcp_client->fd(), tcp_client, EPOLLIN | EPOLLET | EPOLLOUT | EPOLLRDHUP);
         }
     }
 }
@@ -213,16 +184,13 @@ template <typename AddrT> void DnsForwarder::TcpClientRecvEvent<AddrT>::Handler(
             logger.Log(__FILE__, __LINE__, Logger::DEBUG,
                        "Send TCP DNS response on fd " + to_string(task_ptr->tcp_server6->fd()) + ":\n" +
                            Logger::RawDataFormatter(os.str()));
+            shared_lock<shared_mutex> lock(m_tcp_server6_mutex);
             if (m_tcp_server6.find(task_ptr->tcp_server6) != m_tcp_server6.end())
             {
                 if (task_ptr->tcp_server6->Send(string({static_cast<char>(len / 256), static_cast<char>(len % 256)}) +
                                                 os.str()))
-                {
-                    epoll_event event;
-                    event.data.ptr = task_ptr->tcp_server6;
-                    event.events = EPOLLIN | EPOLLET | EPOLLOUT | EPOLLRDHUP;
-                    Wrapper::EpollModifyFd(m_epollfd, task_ptr->tcp_server6->fd(), event);
-                }
+                    Wrapper::EpollModFd(m_epollfd, task_ptr->tcp_server6->fd(), task_ptr->tcp_server6,
+                                        EPOLLIN | EPOLLET | EPOLLOUT | EPOLLRDHUP);
             }
         }
         else
@@ -230,16 +198,13 @@ template <typename AddrT> void DnsForwarder::TcpClientRecvEvent<AddrT>::Handler(
             logger.Log(__FILE__, __LINE__, Logger::DEBUG,
                        "Send TCP DNS response on fd " + to_string(task_ptr->tcp_server4->fd()) + ":\n" +
                            Logger::RawDataFormatter(os.str()));
+            shared_lock<shared_mutex> lock(m_tcp_server4_mutex);
             if (m_tcp_server4.find(task_ptr->tcp_server4) != m_tcp_server4.end())
             {
                 if (task_ptr->tcp_server4->Send(string({static_cast<char>(len / 256), static_cast<char>(len % 256)}) +
                                                 os.str()))
-                {
-                    epoll_event event;
-                    event.data.ptr = task_ptr->tcp_server4;
-                    event.events = EPOLLIN | EPOLLET | EPOLLOUT | EPOLLRDHUP;
-                    Wrapper::EpollModifyFd(m_epollfd, task_ptr->tcp_server4->fd(), event);
-                }
+                    Wrapper::EpollModFd(m_epollfd, task_ptr->tcp_server4->fd(), task_ptr->tcp_server4,
+                                        EPOLLIN | EPOLLET | EPOLLOUT | EPOLLRDHUP);
             }
         }
     }
@@ -250,6 +215,7 @@ template <typename AddrT> void DnsForwarder::TcpServerCloseEvent<AddrT>::Handler
     auto logger = Logger::GetInstance();
     Wrapper::EpollDelFd(m_epollfd, m_tcp_server->fd());
     logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Closed TCP server on fd " + to_string(m_tcp_server->fd()) + ".");
+    unique_lock<shared_mutex> lock(m_tcp_server_mutex);
     m_tcp_server_set.erase(m_tcp_server);
     delete m_tcp_server;
 }
@@ -259,16 +225,14 @@ template <typename AddrT> void DnsForwarder::TcpClientCloseEvent<AddrT>::Handler
     auto logger = Logger::GetInstance();
     auto addr = m_tcp_client->addr();
     Wrapper::EpollDelFd(m_epollfd, m_tcp_client->fd());
+    unique_lock<shared_mutex> lock(m_tcp_client_mutex);
     m_tcp_client_set.erase(m_tcp_client);
     delete m_tcp_client;
     logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Restart TCP client on fd " + to_string(m_tcp_client->fd()) + ".");
 
     m_tcp_client = new TcpClient<AddrT>(addr);
     m_tcp_client_set.insert(m_tcp_client);
-    epoll_event event;
-    event.data.ptr = m_tcp_client;
-    event.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
-    Wrapper::EpollAddFd(m_epollfd, m_tcp_client->fd(), event);
+    Wrapper::EpollAddFd(m_epollfd, m_tcp_client->fd(), m_tcp_client, EPOLLIN | EPOLLET | EPOLLRDHUP);
 }
 
 template class DnsForwarder::UdpServerRecvEvent<sockaddr_in>;

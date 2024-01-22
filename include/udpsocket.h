@@ -1,9 +1,9 @@
-#ifndef _UDPSOCKET_H_
-#define _UDPSOCKET_H_
+#pragma once
 
 #include <arpa/inet.h>
 #include <cstdint>
 
+#include <mutex>
 #include <queue>
 #include <string>
 #include <utility>
@@ -26,6 +26,7 @@ template <typename AddrT> class UdpSocket
 
   protected:
     int m_sockfd;
+    std::mutex m_send_mutex;
     std::queue<std::pair<AddrT, std::string>> send_queue;
 };
 
@@ -51,5 +52,3 @@ typedef UdpClient<sockaddr_in6> UdpClient6;
 typedef UdpServer<sockaddr_in> UdpServer4;
 typedef UdpServer<sockaddr_in6> UdpServer6;
 } // namespace DnsForwarder
-
-#endif // _UDPSOCKET_H_

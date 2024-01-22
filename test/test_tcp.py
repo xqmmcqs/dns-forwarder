@@ -11,9 +11,11 @@ nameservers = [
 test_case_list = [
     {"qname": "baidu.com", "rdtype": "A"},
     {"qname": "byr.pt", "rdtype": "AAAA"},
-    {"qname": "xqmmcqs.com", "rdtype": "CNAME"},
+    {"qname": "blog.xqmmcqs.com", "rdtype": "CNAME"},
     {"qname": "baidu.com", "rdtype": "MX"},
     {"qname": "baidu.com", "rdtype": "TXT"},
+    {"qname": "2048.size.dns.netmeister.org", "rdtype": "A"},
+    {"qname": "txt32640.size.dns.netmeister.org", "rdtype": "TXT"},
 ]
 
 p = subprocess.Popen(

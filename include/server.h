@@ -1,11 +1,12 @@
-#ifndef _SERVER_H_
-#define _SERVER_H_
+#pragma once
 
 #include <sys/epoll.h>
 
 #include <iostream>
 
 #include "event.h"
+#include "handler.h"
+#include "threadpool.h"
 
 namespace DnsForwarder
 {
@@ -34,13 +35,16 @@ class Server
     std::unordered_set<TcpServer6 *> m_tcp_server6;
     std::unordered_set<TcpClient4 *> m_tcp_client4;
     std::unordered_set<TcpClient6 *> m_tcp_client6;
+    std::shared_mutex m_tcp_server4_mutex;
+    std::shared_mutex m_tcp_server6_mutex;
+    std::shared_mutex m_tcp_client4_mutex;
+    std::shared_mutex m_tcp_client6_mutex;
     std::vector<sockaddr_in> m_remote_addr4;
     std::vector<sockaddr_in6> m_remote_addr6;
+    ThreadPool m_thread_pool;
     TaskPool<UdpTask> m_udp_task_pool;
     TaskPool<TcpTask> m_tcp_task_pool;
     int m_epollfd;
     epoll_event m_events[MAX_EVENTS];
 };
 } // namespace DnsForwarder
-
-#endif // _SERVER_H_

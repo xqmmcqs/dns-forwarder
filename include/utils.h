@@ -1,5 +1,4 @@
-#ifndef _UTILS_H_
-#define _UTILS_H_
+#pragma once
 
 #include <arpa/inet.h>
 #include <cstdint>
@@ -34,9 +33,9 @@ ssize_t Send(int sockfd, const void *buf, size_t len, int flags);
 ssize_t Recv(int sockfd, void *buf, size_t len, int flags);
 int EpollCreate();
 int SetNonBlocking(int sockfd);
-void EpollAddFd(int epollfd, int sockfd, epoll_event &event);
+void EpollAddFd(int epollfd, int sockfd, void *ptr, uint32_t events);
 void EpollDelFd(int epollfd, int sockfd);
-void EpollModifyFd(int epollfd, int sockfd, epoll_event &event);
+void EpollModFd(int epollfd, int sockfd, void *ptr, uint32_t events);
 int EpollWait(int epollfd, epoll_event *events, int maxevents, int timeout);
 } // namespace Wrapper
 
@@ -63,5 +62,3 @@ class Logger
 };
 
 } // namespace DnsForwarder
-
-#endif // _UTILS_H_

@@ -28,6 +28,7 @@ template <typename AddrT> DnsForwarder::UdpSocket<AddrT>::~UdpSocket()
 
 template <typename AddrT> bool DnsForwarder::UdpSocket<AddrT>::SendTo()
 {
+    unique_lock<mutex> lock(m_send_mutex);
     while (!send_queue.empty())
     {
         const auto &packet = send_queue.front();
@@ -41,6 +42,7 @@ template <typename AddrT> bool DnsForwarder::UdpSocket<AddrT>::SendTo()
 
 template <typename AddrT> bool DnsForwarder::UdpSocket<AddrT>::SendTo(const AddrT &addr, const std::string &data)
 {
+    unique_lock<mutex> lock(m_send_mutex);
     if (!send_queue.empty())
     {
         send_queue.push(make_pair(addr, data));
@@ -63,7 +65,7 @@ template <typename AddrT> void DnsForwarder::UdpSocket<AddrT>::ReceiveFrom(AddrT
         data.assign(buf, nrecv);
 }
 
-template <typename AddrT> DnsForwarder::UdpServer<AddrT>::UdpServer(const AddrT &addr)
+template <typename AddrT> DnsForwarder::UdpServer<AddrT>::UdpServer(const AddrT &addr) : UdpSocket<AddrT>()
 {
     Wrapper::Bind(this->m_sockfd, (struct sockaddr *)&addr, sizeof(addr));
 }
