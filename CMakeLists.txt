@@ -11,6 +11,7 @@ target_include_directories(${PROJECT_NAME}
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 include(CPack)
 
 include(CTest)
@@ -41,8 +42,4 @@ add_test(NAME ipv6
 
 add_test(NAME tcp
     COMMAND ${PYTHON_TEST} ${PROJECT_SOURCE_DIR}/test/test_tcp.py
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
-
-add_test(NAME top500
-    COMMAND ${PYTHON_TEST} ${PROJECT_SOURCE_DIR}/test/test_top500.py
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})

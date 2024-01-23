@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
     string local_ip4("0.0.0.0");
     string local_ip6("::1");
     uint16_t local_port(10053);
-    string nameservers("8.8.8.8");
+    string nameservers("114.114.114.114");
 
     while (true)
     {
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
             cout << "      --local-ipv4=IP           local IPv4 address (default: 127.0.0.1)" << endl;
             cout << "      --local-ipv6=IP           local IPv6 address (default: ::1)" << endl;
             cout << "      --local-port=PORT         local port (default: 10053)" << endl;
-            cout << "      --nameservers=IP1,IP2,... Do53 nameservers (default: 8.8.8.8)" << endl;
+            cout << "      --nameservers=IP1,IP2,... Do53 nameservers (default: 114.114.114.114)" << endl;
             return 0;
         case 'd':
             Logger::GetInstance().SetLevel(Logger::DEBUG);
@@ -93,6 +93,8 @@ int main(int argc, char *argv[])
             server.AddRemote(remote_addr6);
         }
     }
+    auto logger = Logger::GetInstance();
+    logger.Log(__FILE__, __LINE__, Logger::INFO, "dns-forwarder is running.");
     server.Run();
     return 0;
 }
