@@ -16,7 +16,7 @@ class Server
     Server &operator=(const Server &) = delete;
 
   public:
-    Server(const sockaddr_in &local_addr4, const sockaddr_in6 &local_addr6);
+    Server(const sockaddr_in &local_addr4, const sockaddr_in6 &local_addr6, int signalfd);
     ~Server();
     void AddRemote(const sockaddr_in &remote_addr4);
     void AddRemote(const sockaddr_in6 &remote_addr6);
@@ -28,6 +28,7 @@ class Server
     UdpServer6 m_udp_server6;
     UdpClient4 m_udp_client4;
     UdpClient6 m_udp_client6;
+
     TcpListener4 m_tcp_listener4;
     TcpListener6 m_tcp_listener6;
     std::unordered_set<TcpServer4 *> m_tcp_server4;
@@ -38,12 +39,18 @@ class Server
     std::shared_mutex m_tcp_server6_mutex;
     std::shared_mutex m_tcp_client4_mutex;
     std::shared_mutex m_tcp_client6_mutex;
+
     std::vector<sockaddr_in> m_remote_addr4;
     std::vector<sockaddr_in6> m_remote_addr6;
+
     ThreadPool m_thread_pool;
     TaskPool<UdpTask> m_udp_task_pool;
     TaskPool<TcpTask> m_tcp_task_pool;
+
     int m_epollfd;
     epoll_event m_events[MAX_EVENTS];
+    int m_signalfd;
+
+    bool m_stop;
 };
 } // namespace DnsForwarder

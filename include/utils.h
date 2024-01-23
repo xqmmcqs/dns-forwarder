@@ -2,7 +2,9 @@
 
 #include <arpa/inet.h>
 #include <cstdint>
+#include <signal.h>
 #include <sys/epoll.h>
+#include <sys/signalfd.h>
 
 #include <iostream>
 #include <queue>
@@ -31,12 +33,17 @@ ssize_t SendTo(int sockfd, const void *buf, size_t len, int flags, const struct 
 ssize_t RecvFrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen);
 ssize_t Send(int sockfd, const void *buf, size_t len, int flags);
 ssize_t Recv(int sockfd, void *buf, size_t len, int flags);
+ssize_t Read(int fd, void *buf, size_t count);
 int EpollCreate();
 int SetNonBlocking(int sockfd);
 void EpollAddFd(int epollfd, int sockfd, void *ptr, uint32_t events);
 void EpollDelFd(int epollfd, int sockfd);
 void EpollModFd(int epollfd, int sockfd, void *ptr, uint32_t events);
 int EpollWait(int epollfd, epoll_event *events, int maxevents, int timeout);
+void SigEmptySet(sigset_t *set);
+void SigAddSet(sigset_t *set, int signum);
+void SigProcMask(int how, const sigset_t *set, sigset_t *oldset);
+int SignalFd(const sigset_t *mask);
 } // namespace Wrapper
 
 class Logger

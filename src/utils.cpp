@@ -153,6 +153,19 @@ ssize_t DnsForwarder::Wrapper::Recv(int sockfd, void *buf, size_t len, int flags
     return nrecv;
 }
 
+ssize_t DnsForwarder::Wrapper::Read(int fd, void *buf, size_t count)
+{
+    ssize_t nread = read(fd, buf, count);
+    if (nread == -1)
+    {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return 0;
+        else
+            throw runtime_error("Failed to read data");
+    }
+    return nread;
+}
+
 int DnsForwarder::Wrapper::EpollCreate()
 {
     int epollfd = epoll_create1(0);
@@ -205,6 +218,32 @@ int DnsForwarder::Wrapper::EpollWait(int epollfd, epoll_event *events, int maxev
     return nready;
 }
 
+void DnsForwarder::Wrapper::SigEmptySet(sigset_t *set)
+{
+    if (sigemptyset(set) == -1)
+        throw runtime_error("Failed to initialize signal set");
+}
+
+void DnsForwarder::Wrapper::SigAddSet(sigset_t *set, int signum)
+{
+    if (sigaddset(set, signum) == -1)
+        throw runtime_error("Failed to add signal to signal set");
+}
+
+void DnsForwarder::Wrapper::SigProcMask(int how, const sigset_t *set, sigset_t *oldset)
+{
+    if (sigprocmask(how, set, oldset) == -1)
+        throw runtime_error("Failed to change signal mask");
+}
+
+int DnsForwarder::Wrapper::SignalFd(const sigset_t *mask)
+{
+    int fd = signalfd(-1, mask, SFD_NONBLOCK | SFD_CLOEXEC);
+    if (fd == -1)
+        throw runtime_error("Failed to create signal fd");
+    return fd;
+}
+
 DnsForwarder::Logger::LogLevel DnsForwarder::Logger::m_log_level = DnsForwarder::Logger::NONE;
 
 DnsForwarder::Logger DnsForwarder::Logger::GetInstance()
@@ -226,24 +265,22 @@ void DnsForwarder::Logger::Log(string filename, int line, LogLevel message_level
         switch (message_level)
         {
         case DEBUG:
-            log_type = "[DEBUG] ";
+            log_type = "[DEBUG]";
             break;
         case INFO:
-            log_type = "[INFO ] ";
+            log_type = "[INFO]";
             break;
         case WARNING:
-            log_type = "[WARN ] ";
+            log_type = "[WARN]";
             break;
         case ERROR:
-            log_type = "[ERROR] ";
+            log_type = "[ERROR]";
             break;
         default:
-            log_type = "[NONE ] ";
+            log_type = "[NONE]";
             break;
         }
-        cerr << log_type
-             << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count()
-             << " " + filename + ":" + to_string(line) + " " + message << endl;
+        cerr << log_type + "\t" + filename + ":" + to_string(line) + " " + message << endl;
     }
 }
 

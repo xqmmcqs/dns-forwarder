@@ -2,20 +2,20 @@
 
 using namespace std;
 
-DnsForwarder::ThreadPool::ThreadPool(size_t threads) : stop(false)
+DnsForwarder::ThreadPool::ThreadPool(size_t threads) : m_stop(false)
 {
     for (size_t i = 0; i < threads; ++i)
-        workers.emplace_back([this] { this->Handler(); });
+        m_workers.emplace_back([this] { this->Handler(); });
 }
 
 DnsForwarder::ThreadPool::~ThreadPool()
 {
     {
-        unique_lock<mutex> lock(queue_mutex);
-        stop = true;
+        unique_lock<mutex> lock(m_queue_mutex);
+        m_stop = true;
     }
-    condition.notify_all();
-    for (thread &worker : workers)
+    m_condition.notify_all();
+    for (thread &worker : m_workers)
         worker.join();
 }
 
@@ -25,12 +25,12 @@ void DnsForwarder::ThreadPool::Handler()
     {
         function<void()> task;
         {
-            unique_lock<mutex> lock(queue_mutex);
-            condition.wait(lock, [this] { return this->stop || !this->tasks.empty(); });
-            if (stop && tasks.empty())
+            unique_lock<mutex> lock(m_queue_mutex);
+            m_condition.wait(lock, [this] { return this->m_stop || !this->m_tasks.empty(); });
+            if (m_stop && m_tasks.empty())
                 return;
-            task = std::move(tasks.front());
-            tasks.pop();
+            task = std::move(m_tasks.front());
+            m_tasks.pop();
         }
         task();
     }

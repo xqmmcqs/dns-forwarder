@@ -22,23 +22,23 @@ class ThreadPool
 
         std::future<return_type> res = task->get_future();
         {
-            std::unique_lock<std::mutex> lock(queue_mutex);
-            if (stop)
+            std::unique_lock<std::mutex> lock(m_queue_mutex);
+            if (m_stop)
                 throw std::runtime_error("enqueue on stopped ThreadPool");
-            tasks.emplace([task]() { (*task)(); });
+            m_tasks.emplace([task]() { (*task)(); });
         }
-        condition.notify_one();
+        m_condition.notify_one();
         return res;
     }
     ~ThreadPool();
 
   private:
-    std::vector<std::thread> workers;
-    std::queue<std::function<void()>> tasks;
+    std::vector<std::thread> m_workers;
+    std::queue<std::function<void()>> m_tasks;
 
-    std::mutex queue_mutex;
-    std::condition_variable condition;
-    bool stop;
+    std::mutex m_queue_mutex;
+    std::condition_variable m_condition;
+    bool m_stop;
 
     void Handler();
 };

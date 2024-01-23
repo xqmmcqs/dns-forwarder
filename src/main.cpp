@@ -74,7 +74,16 @@ int main(int argc, char *argv[])
     sockaddr_in6 local_addr6;
     Wrapper::SockAddr4(local_ip4, local_port, local_addr4);
     Wrapper::SockAddr6(local_ip6, local_port, local_addr6);
-    Server server(local_addr4, local_addr6);
+
+    sigset_t sigintMask;
+    Wrapper::SigEmptySet(&sigintMask);
+    Wrapper::SigAddSet(&sigintMask, SIGINT);
+    Wrapper::SigAddSet(&sigintMask, SIGTERM);
+    Wrapper::SigProcMask(SIG_BLOCK, &sigintMask, NULL);
+
+    int signalfd = Wrapper::SignalFd(&sigintMask);
+    Server server(local_addr4, local_addr6, signalfd);
+
     replace(nameservers.begin(), nameservers.end(), ',', ' ');
     istringstream ss(nameservers);
     string remote_ip;
@@ -93,8 +102,9 @@ int main(int argc, char *argv[])
             server.AddRemote(remote_addr6);
         }
     }
+
     auto logger = Logger::GetInstance();
-    logger.Log(__FILE__, __LINE__, Logger::INFO, "dns-forwarder is running.");
+    logger.Log(__FILE__, __LINE__, Logger::INFO, "Running dns-forwarder.");
     server.Run();
     return 0;
 }
