@@ -5,10 +5,13 @@
 
 #include "dnspacket.h"
 #include "tcpsocket.h"
+#include "timer.h"
 #include "udpsocket.h"
 
 namespace DnsForwarder
 {
+static constexpr size_t TIMEOUT_SECONDS = 1;
+
 template <typename TaskT> class TaskPool
 {
   public:
@@ -42,12 +45,17 @@ struct UdpTask
         : query_packet(query_packet_), addr6(addr_), is_ipv6(true)
     {
     }
+    ~UdpTask()
+    {
+        timer->valid = false;
+    }
     DnsPacket query_packet;
     union {
         sockaddr_in addr;
         sockaddr_in6 addr6;
     };
     bool is_ipv6;
+    std::shared_ptr<Timer> timer;
 };
 
 struct TcpTask
@@ -61,11 +69,16 @@ struct TcpTask
         : query_packet(query_packet_), tcp_server6(tcp_server6_), is_ipv6(true)
     {
     }
+    ~TcpTask()
+    {
+        timer->valid = false;
+    }
     DnsPacket query_packet;
     union {
         TcpServer4 *tcp_server4;
         TcpServer6 *tcp_server6;
     };
     bool is_ipv6;
+    std::shared_ptr<Timer> timer;
 };
 } // namespace DnsForwarder

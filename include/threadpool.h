@@ -20,7 +20,6 @@ class ThreadPool
         auto task = std::make_shared<std::packaged_task<return_type()>>(
             std::bind(std::forward<F>(f), std::forward<Args>(args)...));
 
-        std::future<return_type> res = task->get_future();
         {
             std::unique_lock<std::mutex> lock(m_queue_mutex);
             if (m_stop)
@@ -28,6 +27,7 @@ class ThreadPool
             m_tasks.emplace([task]() { (*task)(); });
         }
         m_condition.notify_one();
+        std::future<return_type> res = task->get_future();
         return res;
     }
     ~ThreadPool();
@@ -39,7 +39,5 @@ class ThreadPool
     std::mutex m_queue_mutex;
     std::condition_variable m_condition;
     bool m_stop;
-
-    void Handler();
 };
 } // namespace DnsForwarder

@@ -9,6 +9,7 @@
 
 namespace DnsForwarder
 {
+
 class Server
 {
     Server() = delete;
@@ -50,6 +51,9 @@ class Server
     int m_epollfd;
     epoll_event m_events[MAX_EVENTS];
     int m_signalfd;
+
+    TimerHeap m_udp_timer_heap;
+    TimerHeap m_tcp_timer_heap;
 
     bool m_stop;
 };

@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
     string local_ip4("0.0.0.0");
     string local_ip6("::1");
     uint16_t local_port(10053);
-    string nameservers("114.114.114.114");
+    string nameservers("8.8.8.8");
 
     while (true)
     {
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
             cout << "      --local-ipv4=IP           local IPv4 address (default: 127.0.0.1)" << endl;
             cout << "      --local-ipv6=IP           local IPv6 address (default: ::1)" << endl;
             cout << "      --local-port=PORT         local port (default: 10053)" << endl;
-            cout << "      --nameservers=IP1,IP2,... Do53 nameservers (default: 114.114.114.114)" << endl;
+            cout << "      --nameservers=IP1,IP2,... Do53 nameservers (default: 8.8.8.8)" << endl;
             return 0;
         case 'd':
             Logger::GetInstance().SetLevel(Logger::DEBUG);
@@ -75,13 +75,14 @@ int main(int argc, char *argv[])
     Wrapper::SockAddr4(local_ip4, local_port, local_addr4);
     Wrapper::SockAddr6(local_ip6, local_port, local_addr6);
 
-    sigset_t sigintMask;
-    Wrapper::SigEmptySet(&sigintMask);
-    Wrapper::SigAddSet(&sigintMask, SIGINT);
-    Wrapper::SigAddSet(&sigintMask, SIGTERM);
-    Wrapper::SigProcMask(SIG_BLOCK, &sigintMask, NULL);
+    sigset_t signal_mask;
+    Wrapper::SigEmptySet(&signal_mask);
+    Wrapper::SigAddSet(&signal_mask, SIGINT);
+    Wrapper::SigAddSet(&signal_mask, SIGTERM);
+    Wrapper::SigAddSet(&signal_mask, SIGALRM);
+    Wrapper::SigProcMask(SIG_BLOCK, &signal_mask, NULL);
 
-    int signalfd = Wrapper::SignalFd(&sigintMask);
+    int signalfd = Wrapper::SignalFd(&signal_mask);
     Server server(local_addr4, local_addr6, signalfd);
 
     replace(nameservers.begin(), nameservers.end(), ',', ' ');

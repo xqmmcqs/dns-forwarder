@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <sys/epoll.h>
 #include <sys/signalfd.h>
+#include <sys/time.h>
 
 #include <iostream>
 #include <queue>
@@ -44,6 +45,8 @@ void SigEmptySet(sigset_t *set);
 void SigAddSet(sigset_t *set, int signum);
 void SigProcMask(int how, const sigset_t *set, sigset_t *oldset);
 int SignalFd(const sigset_t *mask);
+void GetITimer(int which, struct itimerval *curr_value);
+void SetITimer(int which, const struct itimerval *new_value, struct itimerval *old_value);
 } // namespace Wrapper
 
 class Logger

@@ -17,7 +17,6 @@ DnsForwarder::Server::Server(const sockaddr_in &local_addr4, const sockaddr_in6 
     Wrapper::EpollAddFd(m_epollfd, m_udp_client6.fd(), &m_udp_client6, EPOLLIN | EPOLLET);
     Wrapper::EpollAddFd(m_epollfd, m_tcp_listener4.fd(), &m_tcp_listener4, EPOLLIN | EPOLLET);
     Wrapper::EpollAddFd(m_epollfd, m_tcp_listener6.fd(), &m_tcp_listener6, EPOLLIN | EPOLLET);
-
     Wrapper::EpollAddFd(m_epollfd, m_signalfd, &m_signalfd, EPOLLIN);
 }
 
@@ -71,6 +70,7 @@ void DnsForwarder::Server::AddRemote(const sockaddr_in6 &remote_addr6)
 
 void DnsForwarder::Server::Run()
 {
+    auto logger = Logger::GetInstance();
     while (!m_stop)
     {
         int ret = Wrapper::EpollWait(m_epollfd, m_events, MAX_EVENTS, -1);
@@ -85,9 +85,17 @@ void DnsForwarder::Server::Run()
                     ssize_t s = Wrapper::Read(m_signalfd, &fdsi, sizeof(signalfd_siginfo));
                     if (fdsi.ssi_signo == SIGINT || fdsi.ssi_signo == SIGTERM)
                     {
-                        auto logger = Logger::GetInstance();
-                        logger.Log(__FILE__, __LINE__, Logger::INFO, "Terminating dns-forwarder...");
+                        logger.Log(__FILE__, __LINE__, Logger::INFO, "Terminating dns-forwarder.");
                         m_stop = true;
+                    }
+                    if (fdsi.ssi_signo == SIGALRM)
+                    {
+                        logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Handling timeout.");
+                        m_thread_pool.enqueue(UdpTimeoutHandler, ref(m_udp_server4), ref(m_udp_server6), m_epollfd,
+                                              ref(m_udp_task_pool), ref(m_udp_timer_heap));
+                        m_thread_pool.enqueue(TcpTimeoutHandler, ref(m_tcp_server4), ref(m_tcp_server6),
+                                              ref(m_tcp_server4_mutex), ref(m_tcp_server6_mutex), m_epollfd,
+                                              ref(m_tcp_task_pool), ref(m_tcp_timer_heap));
                     }
                 }
             }
@@ -95,12 +103,14 @@ void DnsForwarder::Server::Run()
             {
                 if (m_events[i].events & EPOLLIN)
                 {
+                    logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Handling UDP IPv4 server receive.");
                     m_thread_pool.enqueue(UdpServerRecvHandler<sockaddr_in>, ref(m_udp_server4), ref(m_udp_client4),
                                           ref(m_udp_client6), ref(m_remote_addr4), ref(m_remote_addr6), m_epollfd,
-                                          ref(m_udp_task_pool));
+                                          ref(m_udp_task_pool), ref(m_udp_timer_heap));
                 }
-                else if (m_events[i].events & EPOLLOUT)
+                if (m_events[i].events & EPOLLOUT)
                 {
+                    logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Handling UDP IPv4 server send.");
                     if (!m_udp_server4.SendTo())
                         Wrapper::EpollModFd(m_epollfd, m_udp_server4.fd(), &m_udp_server4, EPOLLIN | EPOLLET);
                 }
@@ -109,12 +119,14 @@ void DnsForwarder::Server::Run()
             {
                 if (m_events[i].events & EPOLLIN)
                 {
+                    logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Handling UDP IPv6 server receive.");
                     m_thread_pool.enqueue(UdpServerRecvHandler<sockaddr_in6>, ref(m_udp_server6), ref(m_udp_client4),
                                           ref(m_udp_client6), ref(m_remote_addr4), ref(m_remote_addr6), m_epollfd,
-                                          ref(m_udp_task_pool));
+                                          ref(m_udp_task_pool), ref(m_udp_timer_heap));
                 }
-                else if (m_events[i].events & EPOLLOUT)
+                if (m_events[i].events & EPOLLOUT)
                 {
+                    logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Handling UDP IPv6 server send.");
                     if (!m_udp_server6.SendTo())
                         Wrapper::EpollModFd(m_epollfd, m_udp_server6.fd(), &m_udp_server6, EPOLLIN | EPOLLET);
                 }
@@ -123,11 +135,13 @@ void DnsForwarder::Server::Run()
             {
                 if (m_events[i].events & EPOLLIN)
                 {
+                    logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Handling UDP IPv4 client receive.");
                     m_thread_pool.enqueue(UdpClientRecvHandler<sockaddr_in>, ref(m_udp_client4), ref(m_udp_server4),
                                           ref(m_udp_server6), m_epollfd, ref(m_udp_task_pool));
                 }
-                else if (m_events[i].events & EPOLLOUT)
+                if (m_events[i].events & EPOLLOUT)
                 {
+                    logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Handling UDP IPv4 client send.");
                     if (!m_udp_client4.SendTo())
                         Wrapper::EpollModFd(m_epollfd, m_udp_client4.fd(), &m_udp_client4, EPOLLIN | EPOLLET);
                 }
@@ -136,11 +150,13 @@ void DnsForwarder::Server::Run()
             {
                 if (m_events[i].events & EPOLLIN)
                 {
+                    logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Handling UDP IPv6 client receive.");
                     m_thread_pool.enqueue(UdpClientRecvHandler<sockaddr_in6>, ref(m_udp_client6), ref(m_udp_server4),
                                           ref(m_udp_server6), m_epollfd, ref(m_udp_task_pool));
                 }
-                else if (m_events[i].events & EPOLLOUT)
+                if (m_events[i].events & EPOLLOUT)
                 {
+                    logger.Log(__FILE__, __LINE__, Logger::DEBUG, "Handling UDP IPv6 client send.");
                     if (!m_udp_client6.SendTo())
                         Wrapper::EpollModFd(m_epollfd, m_udp_client6.fd(), &m_udp_client6, EPOLLIN | EPOLLET);
                 }
@@ -161,15 +177,16 @@ void DnsForwarder::Server::Run()
                 {
                     m_thread_pool.enqueue(TcpServerRecvHandler<sockaddr_in>, reinterpret_cast<TcpServer4 *>(socket),
                                           ref(m_tcp_client4), ref(m_tcp_client6), ref(m_tcp_client4_mutex),
-                                          ref(m_tcp_client6_mutex), ref(m_epollfd), ref(m_tcp_task_pool));
+                                          ref(m_tcp_client6_mutex), ref(m_epollfd), ref(m_tcp_task_pool),
+                                          ref(m_tcp_timer_heap));
                 }
-                else if (m_events[i].events & EPOLLOUT)
+                if (m_events[i].events & EPOLLOUT)
                 {
                     if (!reinterpret_cast<TcpServer4 *>(socket)->Send())
                         Wrapper::EpollModFd(m_epollfd, reinterpret_cast<TcpServer4 *>(socket)->fd(), socket,
                                             EPOLLIN | EPOLLET | EPOLLRDHUP);
                 }
-                else if (m_events[i].events & EPOLLRDHUP)
+                if (m_events[i].events & EPOLLRDHUP)
                 {
                     m_thread_pool.enqueue(TcpServerCloseHandler<sockaddr_in>, reinterpret_cast<TcpServer4 *>(socket),
                                           ref(m_tcp_server4), ref(m_tcp_server4_mutex), ref(m_epollfd));
@@ -181,15 +198,16 @@ void DnsForwarder::Server::Run()
                 {
                     m_thread_pool.enqueue(TcpServerRecvHandler<sockaddr_in6>, reinterpret_cast<TcpServer6 *>(socket),
                                           ref(m_tcp_client4), ref(m_tcp_client6), ref(m_tcp_client4_mutex),
-                                          ref(m_tcp_client6_mutex), ref(m_epollfd), ref(m_tcp_task_pool));
+                                          ref(m_tcp_client6_mutex), ref(m_epollfd), ref(m_tcp_task_pool),
+                                          ref(m_tcp_timer_heap));
                 }
-                else if (m_events[i].events & EPOLLOUT)
+                if (m_events[i].events & EPOLLOUT)
                 {
                     if (!reinterpret_cast<TcpServer6 *>(socket)->Send())
                         Wrapper::EpollModFd(m_epollfd, reinterpret_cast<TcpServer6 *>(socket)->fd(), socket,
                                             EPOLLIN | EPOLLET | EPOLLRDHUP);
                 }
-                else if (m_events[i].events & EPOLLRDHUP)
+                if (m_events[i].events & EPOLLRDHUP)
                 {
                     m_thread_pool.enqueue(TcpServerCloseHandler<sockaddr_in6>, reinterpret_cast<TcpServer6 *>(socket),
                                           ref(m_tcp_server6), ref(m_tcp_server6_mutex), ref(m_epollfd));
@@ -203,13 +221,13 @@ void DnsForwarder::Server::Run()
                                           ref(m_tcp_server4), ref(m_tcp_server6), ref(m_tcp_server4_mutex),
                                           ref(m_tcp_server6_mutex), ref(m_epollfd), ref(m_tcp_task_pool));
                 }
-                else if (m_events[i].events & EPOLLOUT)
+                if (m_events[i].events & EPOLLOUT)
                 {
                     if (!reinterpret_cast<TcpClient4 *>(socket)->Send())
                         Wrapper::EpollModFd(m_epollfd, reinterpret_cast<TcpClient4 *>(socket)->fd(), socket,
                                             EPOLLIN | EPOLLET | EPOLLRDHUP);
                 }
-                else if (m_events[i].events & EPOLLRDHUP)
+                if (m_events[i].events & EPOLLRDHUP)
                 {
                     m_thread_pool.enqueue(TcpClientCloseHandler<sockaddr_in>, reinterpret_cast<TcpClient4 *>(socket),
                                           ref(m_tcp_client4), ref(m_tcp_client4_mutex), ref(m_epollfd));
@@ -223,13 +241,13 @@ void DnsForwarder::Server::Run()
                                           ref(m_tcp_server4), ref(m_tcp_server6), ref(m_tcp_server4_mutex),
                                           ref(m_tcp_server6_mutex), ref(m_epollfd), ref(m_tcp_task_pool));
                 }
-                else if (m_events[i].events & EPOLLOUT)
+                if (m_events[i].events & EPOLLOUT)
                 {
                     if (!reinterpret_cast<TcpClient6 *>(socket)->Send())
                         Wrapper::EpollModFd(m_epollfd, reinterpret_cast<TcpClient6 *>(socket)->fd(), socket,
                                             EPOLLIN | EPOLLET | EPOLLRDHUP);
                 }
-                else if (m_events[i].events & EPOLLRDHUP)
+                if (m_events[i].events & EPOLLRDHUP)
                 {
                     m_thread_pool.enqueue(TcpClientCloseHandler<sockaddr_in6>, reinterpret_cast<TcpClient6 *>(socket),
                                           ref(m_tcp_client6), ref(m_tcp_client6_mutex), ref(m_epollfd));

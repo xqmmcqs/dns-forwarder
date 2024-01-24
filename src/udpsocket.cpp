@@ -42,27 +42,27 @@ template <typename AddrT> bool DnsForwarder::UdpSocket<AddrT>::SendTo()
 
 template <typename AddrT> bool DnsForwarder::UdpSocket<AddrT>::SendTo(const AddrT &addr, const std::string &data)
 {
-    unique_lock<mutex> lock(m_send_mutex);
-    if (!send_queue.empty())
-    {
-        send_queue.push(make_pair(addr, data));
-        return false;
-    }
+    auto logger = Logger::GetInstance();
     if (!Wrapper::SendTo(m_sockfd, data.c_str(), data.size(), MSG_DONTWAIT, (struct sockaddr *)&addr, sizeof(addr)))
     {
+        unique_lock<mutex> lock(m_send_mutex);
         send_queue.push(make_pair(addr, data));
         return true;
     }
     return false;
 }
 
-template <typename AddrT> void DnsForwarder::UdpSocket<AddrT>::ReceiveFrom(AddrT &addr, std::string &data) const
+template <typename AddrT> bool DnsForwarder::UdpSocket<AddrT>::ReceiveFrom(AddrT &addr, std::string &data) const
 {
     char buf[65536];
     socklen_t addrlen(sizeof(addr));
     ssize_t nrecv = Wrapper::RecvFrom(m_sockfd, buf, sizeof(buf), MSG_DONTWAIT, (struct sockaddr *)&addr, &addrlen);
     if (nrecv)
+    {
         data.assign(buf, nrecv);
+        return true;
+    }
+    return false;
 }
 
 template <typename AddrT> DnsForwarder::UdpServer<AddrT>::UdpServer(const AddrT &addr) : UdpSocket<AddrT>()

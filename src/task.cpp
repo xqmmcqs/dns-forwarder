@@ -19,6 +19,7 @@ template <typename TaskT> uint16_t DnsForwarder::TaskPool<TaskT>::PutTask(shared
     {
         unique_lock<shared_mutex> pool_lock(m_pool_mutex);
         m_pool[index] = task;
+        task->timer = make_shared<Timer>(chrono::milliseconds(TIMEOUT_SECONDS * 1000), index);
     }
     return index;
 }

@@ -22,7 +22,7 @@ template <typename AddrT> class UdpSocket
     }
     bool SendTo();
     bool SendTo(const AddrT &addr, const std::string &data);
-    void ReceiveFrom(AddrT &addr, std::string &data) const;
+    bool ReceiveFrom(AddrT &addr, std::string &data) const;
 
   protected:
     int m_sockfd;

@@ -244,6 +244,20 @@ int DnsForwarder::Wrapper::SignalFd(const sigset_t *mask)
     return fd;
 }
 
+void DnsForwarder::Wrapper::GetITimer(int which, itimerval *curr_value)
+{
+    int ret = getitimer(which, curr_value);
+    if (ret == -1)
+        throw runtime_error("Failed to get timer");
+}
+
+void DnsForwarder::Wrapper::SetITimer(int which, const itimerval *new_value, itimerval *old_value)
+{
+    int ret = setitimer(which, new_value, old_value);
+    if (ret == -1)
+        throw runtime_error("Failed to set timer");
+}
+
 DnsForwarder::Logger::LogLevel DnsForwarder::Logger::m_log_level = DnsForwarder::Logger::NONE;
 
 DnsForwarder::Logger DnsForwarder::Logger::GetInstance()
@@ -280,7 +294,9 @@ void DnsForwarder::Logger::Log(string filename, int line, LogLevel message_level
             log_type = "[NONE]";
             break;
         }
-        cerr << log_type + "\t" + filename + ":" + to_string(line) + " " + message << endl;
+        cerr << log_type << '\t'
+             << chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count()
+             << '\t' + filename + ":" + to_string(line) + " " + message << endl;
     }
 }
 
